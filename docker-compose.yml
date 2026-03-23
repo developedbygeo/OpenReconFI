@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: matchbook
+      POSTGRES_USER: matchbook
+      POSTGRES_PASSWORD: matchbook
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matchbook -d matchbook"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: matchbook
+      POSTGRES_USER: matchbook
+      POSTGRES_PASSWORD: matchbook
+
+volumes:
+  postgres_data:
