@@ -23,7 +23,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from app.config import settings
 
 SCOPES = [
-    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/drive.file",
 ]
 

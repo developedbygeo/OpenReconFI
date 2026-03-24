@@ -1,3 +1,5 @@
+name: matchbook
+
 services:
   postgres:
     image: pgvector/pgvector:pg17

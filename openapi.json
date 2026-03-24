@@ -1,0 +1,3204 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Matchbook API",
+    "description": "Self-hosted agency finance ops \u2014 invoice collection, reconciliation, reporting.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/invoices": {
+      "get": {
+        "tags": [
+          "invoices",
+          "invoices"
+        ],
+        "summary": "List Invoices",
+        "operationId": "list_invoices_invoices_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by period e.g. 2026-03",
+              "title": "Period"
+            },
+            "description": "Filter by period e.g. 2026-03"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status",
+              "title": "Status"
+            },
+            "description": "Filter by status"
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "invoices",
+          "invoices"
+        ],
+        "summary": "Create Invoice",
+        "operationId": "create_invoice_invoices_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvoiceCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices/{invoice_id}": {
+      "get": {
+        "tags": [
+          "invoices",
+          "invoices"
+        ],
+        "summary": "Get Invoice",
+        "operationId": "get_invoice_invoices__invoice_id__get",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "invoices",
+          "invoices"
+        ],
+        "summary": "Update Invoice",
+        "operationId": "update_invoice_invoices__invoice_id__patch",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvoiceUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices/upload": {
+      "post": {
+        "tags": [
+          "invoices",
+          "invoices"
+        ],
+        "summary": "Upload Invoice",
+        "description": "Manual PDF upload \u2014 extracts via LLM, stores invoice.",
+        "operationId": "upload_invoice_invoices_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_invoice_invoices_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs": {
+      "get": {
+        "tags": [
+          "jobs",
+          "jobs"
+        ],
+        "summary": "List Jobs",
+        "operationId": "list_jobs_jobs_get",
+        "parameters": [
+          {
+            "name": "job_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JobType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Job Type"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JobStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "jobs",
+          "jobs"
+        ],
+        "summary": "Trigger Job",
+        "description": "Trigger a new job (gmail_sync, portal_scrape, reconcile).",
+        "operationId": "trigger_job_jobs_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobTrigger"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "jobs",
+          "jobs"
+        ],
+        "summary": "Get Job",
+        "operationId": "get_job_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reconciliation/upload": {
+      "post": {
+        "tags": [
+          "reconciliation",
+          "reconciliation"
+        ],
+        "summary": "Upload Statement",
+        "description": "Upload a bank statement file, parse via LLM, store transactions.",
+        "operationId": "upload_statement_reconciliation_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_statement_reconciliation_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementUploadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reconciliation/transactions": {
+      "get": {
+        "tags": [
+          "reconciliation",
+          "reconciliation"
+        ],
+        "summary": "List Transactions",
+        "operationId": "list_transactions_reconciliation_transactions_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TransactionStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reconciliation/match": {
+      "post": {
+        "tags": [
+          "reconciliation",
+          "reconciliation"
+        ],
+        "summary": "Trigger Matching",
+        "description": "Trigger LLM matching for a given period.",
+        "operationId": "trigger_matching_reconciliation_match_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchTriggerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchTriggerResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reconciliation/matches": {
+      "get": {
+        "tags": [
+          "reconciliation",
+          "reconciliation"
+        ],
+        "summary": "List Matches",
+        "operationId": "list_matches_reconciliation_matches_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reconciliation/matches/{match_id}": {
+      "get": {
+        "tags": [
+          "reconciliation",
+          "reconciliation"
+        ],
+        "summary": "Get Match",
+        "operationId": "get_match_reconciliation_matches__match_id__get",
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Match Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "reconciliation",
+          "reconciliation"
+        ],
+        "summary": "Reject Match",
+        "description": "Reject (delete) a match \u2014 resets invoice and transaction to unmatched.",
+        "operationId": "reject_match_reconciliation_matches__match_id__delete",
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Match Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reconciliation/matches/{match_id}/confirm": {
+      "post": {
+        "tags": [
+          "reconciliation",
+          "reconciliation"
+        ],
+        "summary": "Confirm Match",
+        "description": "Confirm a match \u2014 updates invoice and transaction status.",
+        "operationId": "confirm_match_reconciliation_matches__match_id__confirm_post",
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Match Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchConfirm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reconciliation/matches/{match_id}/reassign": {
+      "patch": {
+        "tags": [
+          "reconciliation",
+          "reconciliation"
+        ],
+        "summary": "Reassign Match",
+        "description": "Reassign a match to a different invoice and/or transaction.",
+        "operationId": "reassign_match_reconciliation_matches__match_id__reassign_patch",
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Match Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchReassign"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vendors": {
+      "get": {
+        "tags": [
+          "vendors",
+          "vendors"
+        ],
+        "summary": "List Vendors",
+        "operationId": "list_vendors_vendors_get",
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "vendors",
+          "vendors"
+        ],
+        "summary": "Create Vendor",
+        "operationId": "create_vendor_vendors_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VendorCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vendors/{vendor_id}": {
+      "get": {
+        "tags": [
+          "vendors",
+          "vendors"
+        ],
+        "summary": "Get Vendor",
+        "operationId": "get_vendor_vendors__vendor_id__get",
+        "parameters": [
+          {
+            "name": "vendor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Vendor Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "vendors",
+          "vendors"
+        ],
+        "summary": "Update Vendor",
+        "operationId": "update_vendor_vendors__vendor_id__patch",
+        "parameters": [
+          {
+            "name": "vendor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Vendor Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VendorUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "vendors",
+          "vendors"
+        ],
+        "summary": "Delete Vendor",
+        "operationId": "delete_vendor_vendors__vendor_id__delete",
+        "parameters": [
+          {
+            "name": "vendor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Vendor Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vendors/{vendor_id}/invoices": {
+      "get": {
+        "tags": [
+          "vendors",
+          "vendors"
+        ],
+        "summary": "Get Vendor Invoices",
+        "description": "Get invoice history for a vendor.",
+        "operationId": "get_vendor_invoices_vendors__vendor_id__invoices_get",
+        "parameters": [
+          {
+            "name": "vendor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Vendor Id"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/missing-invoices": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard"
+        ],
+        "summary": "Missing Invoice Alerts",
+        "description": "Detect vendors with missing invoices based on billing cycle + last invoice date.",
+        "operationId": "missing_invoice_alerts_dashboard_missing_invoices_get",
+        "parameters": [
+          {
+            "name": "as_of",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Check for missing invoices as of this period (YYYY-MM). Defaults to current month.",
+              "title": "As Of"
+            },
+            "description": "Check for missing invoices as of this period (YYYY-MM). Defaults to current month."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissingInvoiceAlertList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/spend-summary": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard"
+        ],
+        "summary": "Spend Summary",
+        "description": "Monthly spend summary \u2014 totals, invoice count, match breakdown.",
+        "operationId": "spend_summary_dashboard_spend_summary_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Period filter (YYYY-MM). Defaults to current month.",
+              "title": "Period"
+            },
+            "description": "Period filter (YYYY-MM). Defaults to current month."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/spend-by-category": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard"
+        ],
+        "summary": "Spend By Category",
+        "description": "Expenses grouped by category for the given period.",
+        "operationId": "spend_by_category_dashboard_spend_by_category_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Period filter (YYYY-MM). Defaults to current month.",
+              "title": "Period"
+            },
+            "description": "Period filter (YYYY-MM). Defaults to current month."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategorySpendList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/spend-by-vendor": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard"
+        ],
+        "summary": "Spend By Vendor",
+        "description": "Expenses grouped by vendor for the given period.",
+        "operationId": "spend_by_vendor_dashboard_spend_by_vendor_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Period filter (YYYY-MM). Defaults to current month.",
+              "title": "Period"
+            },
+            "description": "Period filter (YYYY-MM). Defaults to current month."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorSpendList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/vat-summary": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard"
+        ],
+        "summary": "Vat Summary",
+        "description": "VAT breakdown by rate for the given period.",
+        "operationId": "vat_summary_dashboard_vat_summary_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Period filter (YYYY-MM). Defaults to current month.",
+              "title": "Period"
+            },
+            "description": "Period filter (YYYY-MM). Defaults to current month."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VATSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/mom-comparison": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard"
+        ],
+        "summary": "Mom Comparison",
+        "description": "Month-over-month spend comparison for the given year.",
+        "operationId": "mom_comparison_dashboard_mom_comparison_get",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Year to compare months for. Defaults to current year.",
+              "title": "Year"
+            },
+            "description": "Year to compare months for. Defaults to current year."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoMComparison"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/generate": {
+      "post": {
+        "tags": [
+          "reports",
+          "reports"
+        ],
+        "summary": "Generate Report",
+        "description": "Generate a financial report in PDF or Excel format.",
+        "operationId": "generate_report_reports_generate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/preview": {
+      "post": {
+        "tags": [
+          "reports",
+          "reports"
+        ],
+        "summary": "Preview Report",
+        "description": "Preview what a report would contain without generating it.",
+        "operationId": "preview_report_reports_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportMeta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/message": {
+      "post": {
+        "tags": [
+          "chat",
+          "chat"
+        ],
+        "summary": "Send Message",
+        "description": "Send a message and receive a streaming response.\n\nUses Server-Sent Events (SSE) to stream the assistant's response.",
+        "operationId": "send_message_chat_message_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatMessageSend"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/history": {
+      "get": {
+        "tags": [
+          "chat",
+          "chat"
+        ],
+        "summary": "Get History",
+        "description": "Get full chat history.",
+        "operationId": "get_history_chat_history_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatHistory"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "chat",
+          "chat"
+        ],
+        "summary": "Clear History",
+        "description": "Clear all chat history.",
+        "operationId": "clear_history_chat_history_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatClearResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BillingCycle": {
+        "type": "string",
+        "enum": [
+          "monthly",
+          "bimonthly",
+          "quarterly",
+          "annual",
+          "irregular"
+        ],
+        "title": "BillingCycle"
+      },
+      "Body_upload_invoice_invoices_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_invoice_invoices_upload_post"
+      },
+      "Body_upload_statement_reconciliation_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_statement_reconciliation_upload_post"
+      },
+      "CategorySpend": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "total_excl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Excl"
+          },
+          "total_vat": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Vat"
+          },
+          "total_incl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Incl"
+          },
+          "invoice_count": {
+            "type": "integer",
+            "title": "Invoice Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "total_excl",
+          "total_vat",
+          "total_incl",
+          "invoice_count"
+        ],
+        "title": "CategorySpend"
+      },
+      "CategorySpendList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CategorySpend"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CategorySpendList"
+      },
+      "ChatClearResponse": {
+        "properties": {
+          "deleted": {
+            "type": "integer",
+            "title": "Deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "title": "ChatClearResponse"
+      },
+      "ChatHistory": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessageRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ChatHistory"
+      },
+      "ChatMessageRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ChatRole"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "retrieved_invoice_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved Invoice Ids"
+          },
+          "retrieved_tx_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved Tx Ids"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "content",
+          "created_at"
+        ],
+        "title": "ChatMessageRead"
+      },
+      "ChatMessageSend": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "ChatMessageSend"
+      },
+      "ChatRole": {
+        "type": "string",
+        "enum": [
+          "user",
+          "assistant"
+        ],
+        "title": "ChatRole"
+      },
+      "ConfirmedBy": {
+        "type": "string",
+        "enum": [
+          "llm",
+          "user"
+        ],
+        "title": "ConfirmedBy"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InvoiceCreate": {
+        "properties": {
+          "vendor": {
+            "type": "string",
+            "title": "Vendor"
+          },
+          "amount_excl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Amount Excl"
+          },
+          "amount_incl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Amount Incl"
+          },
+          "vat_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Vat Amount"
+          },
+          "vat_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Vat Rate"
+          },
+          "invoice_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Invoice Date"
+          },
+          "invoice_number": {
+            "type": "string",
+            "title": "Invoice Number"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "source": {
+            "$ref": "#/components/schemas/InvoiceSource",
+            "default": "manual"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "raw_extraction": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Extraction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vendor",
+          "amount_excl",
+          "amount_incl",
+          "vat_amount",
+          "vat_rate",
+          "invoice_date",
+          "invoice_number",
+          "period"
+        ],
+        "title": "InvoiceCreate"
+      },
+      "InvoiceList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "InvoiceList"
+      },
+      "InvoiceRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "vendor": {
+            "type": "string",
+            "title": "Vendor"
+          },
+          "amount_excl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount Excl"
+          },
+          "amount_incl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount Incl"
+          },
+          "vat_amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Vat Amount"
+          },
+          "vat_rate": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Vat Rate"
+          },
+          "invoice_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Invoice Date"
+          },
+          "invoice_number": {
+            "type": "string",
+            "title": "Invoice Number"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "drive_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drive Url"
+          },
+          "drive_file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drive File Id"
+          },
+          "source": {
+            "$ref": "#/components/schemas/InvoiceSource"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvoiceStatus"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "raw_extraction": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Extraction"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "vendor",
+          "amount_excl",
+          "amount_incl",
+          "vat_amount",
+          "vat_rate",
+          "invoice_date",
+          "invoice_number",
+          "source",
+          "status",
+          "period",
+          "created_at"
+        ],
+        "title": "InvoiceRead"
+      },
+      "InvoiceSource": {
+        "type": "string",
+        "enum": [
+          "gmail",
+          "portal",
+          "manual"
+        ],
+        "title": "InvoiceSource"
+      },
+      "InvoiceStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "matched",
+          "unmatched",
+          "flagged"
+        ],
+        "title": "InvoiceStatus"
+      },
+      "InvoiceUpdate": {
+        "properties": {
+          "vendor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvoiceStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "InvoiceUpdate"
+      },
+      "JobList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/JobRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "JobList"
+      },
+      "JobRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "job_type": {
+            "$ref": "#/components/schemas/JobType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "triggered_by": {
+            "$ref": "#/components/schemas/TriggeredBy"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "job_type",
+          "status",
+          "triggered_by",
+          "started_at"
+        ],
+        "title": "JobRead"
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": [
+          "running",
+          "done",
+          "failed"
+        ],
+        "title": "JobStatus"
+      },
+      "JobTrigger": {
+        "properties": {
+          "job_type": {
+            "$ref": "#/components/schemas/JobType"
+          },
+          "supplier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_type"
+        ],
+        "title": "JobTrigger"
+      },
+      "JobType": {
+        "type": "string",
+        "enum": [
+          "gmail_sync",
+          "portal_scrape",
+          "reconcile"
+        ],
+        "title": "JobType"
+      },
+      "MatchConfirm": {
+        "properties": {},
+        "type": "object",
+        "title": "MatchConfirm",
+        "description": "Confirm a match \u2014 sets confirmed_by to 'user' and confirmed_at to now."
+      },
+      "MatchList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MatchRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "MatchList"
+      },
+      "MatchRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "invoice_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Invoice Id"
+          },
+          "transaction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Transaction Id"
+          },
+          "confidence": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Confidence"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "confirmed_by": {
+            "$ref": "#/components/schemas/ConfirmedBy"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "invoice_id",
+          "transaction_id",
+          "confidence",
+          "rationale",
+          "confirmed_by"
+        ],
+        "title": "MatchRead"
+      },
+      "MatchReassign": {
+        "properties": {
+          "invoice_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoice Id"
+          },
+          "transaction_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Id"
+          }
+        },
+        "type": "object",
+        "title": "MatchReassign",
+        "description": "Reassign a match to a different invoice or transaction."
+      },
+      "MatchTriggerRequest": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period"
+        ],
+        "title": "MatchTriggerRequest"
+      },
+      "MatchTriggerResponse": {
+        "properties": {
+          "matches_suggested": {
+            "type": "integer",
+            "title": "Matches Suggested"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          }
+        },
+        "type": "object",
+        "required": [
+          "matches_suggested",
+          "period"
+        ],
+        "title": "MatchTriggerResponse"
+      },
+      "MissingInvoiceAlert": {
+        "properties": {
+          "vendor_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vendor Id"
+          },
+          "vendor_name": {
+            "type": "string",
+            "title": "Vendor Name"
+          },
+          "billing_cycle": {
+            "$ref": "#/components/schemas/BillingCycle"
+          },
+          "last_invoice_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Invoice Period"
+          },
+          "expected_period": {
+            "type": "string",
+            "title": "Expected Period"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vendor_id",
+          "vendor_name",
+          "billing_cycle",
+          "expected_period"
+        ],
+        "title": "MissingInvoiceAlert"
+      },
+      "MissingInvoiceAlertList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MissingInvoiceAlert"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "MissingInvoiceAlertList"
+      },
+      "MoMComparison": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MonthlySpend"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "MoMComparison"
+      },
+      "MonthlySpend": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "total_excl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Excl"
+          },
+          "total_vat": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Vat"
+          },
+          "total_incl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Incl"
+          },
+          "invoice_count": {
+            "type": "integer",
+            "title": "Invoice Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "total_excl",
+          "total_vat",
+          "total_incl",
+          "invoice_count"
+        ],
+        "title": "MonthlySpend"
+      },
+      "ReportFormat": {
+        "type": "string",
+        "enum": [
+          "pdf",
+          "excel"
+        ],
+        "title": "ReportFormat"
+      },
+      "ReportMeta": {
+        "properties": {
+          "timeframe_label": {
+            "type": "string",
+            "title": "Timeframe Label"
+          },
+          "periods": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Periods"
+          },
+          "format": {
+            "$ref": "#/components/schemas/ReportFormat"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timeframe_label",
+          "periods",
+          "format",
+          "filename"
+        ],
+        "title": "ReportMeta"
+      },
+      "ReportRequest": {
+        "properties": {
+          "timeframe": {
+            "$ref": "#/components/schemas/TimeframeType"
+          },
+          "format": {
+            "$ref": "#/components/schemas/ReportFormat"
+          },
+          "period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period"
+          },
+          "quarter": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quarter"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          },
+          "from_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Period"
+          },
+          "to_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Period"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timeframe",
+          "format"
+        ],
+        "title": "ReportRequest"
+      },
+      "SpendSummary": {
+        "properties": {
+          "total_spend_excl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Spend Excl"
+          },
+          "total_vat": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Vat"
+          },
+          "total_spend_incl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Spend Incl"
+          },
+          "invoice_count": {
+            "type": "integer",
+            "title": "Invoice Count"
+          },
+          "matched_count": {
+            "type": "integer",
+            "title": "Matched Count"
+          },
+          "unmatched_count": {
+            "type": "integer",
+            "title": "Unmatched Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_spend_excl",
+          "total_vat",
+          "total_spend_incl",
+          "invoice_count",
+          "matched_count",
+          "unmatched_count"
+        ],
+        "title": "SpendSummary"
+      },
+      "StatementUploadResponse": {
+        "properties": {
+          "transactions_parsed": {
+            "type": "integer",
+            "title": "Transactions Parsed"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transactions_parsed",
+          "period"
+        ],
+        "title": "StatementUploadResponse"
+      },
+      "TimeframeType": {
+        "type": "string",
+        "enum": [
+          "single_month",
+          "quarter",
+          "ytd",
+          "full_year",
+          "custom"
+        ],
+        "title": "TimeframeType"
+      },
+      "TransactionList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TransactionRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "TransactionList"
+      },
+      "TransactionRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "tx_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Tx Date"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "counterparty": {
+            "type": "string",
+            "title": "Counterparty"
+          },
+          "counterparty_iban": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Iban"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TransactionStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tx_date",
+          "amount",
+          "description",
+          "counterparty",
+          "period",
+          "status"
+        ],
+        "title": "TransactionRead"
+      },
+      "TransactionStatus": {
+        "type": "string",
+        "enum": [
+          "unmatched",
+          "matched"
+        ],
+        "title": "TransactionStatus"
+      },
+      "TriggeredBy": {
+        "type": "string",
+        "enum": [
+          "user"
+        ],
+        "title": "TriggeredBy"
+      },
+      "VATBreakdown": {
+        "properties": {
+          "vat_rate": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Vat Rate"
+          },
+          "total_excl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Excl"
+          },
+          "total_vat": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Vat"
+          },
+          "invoice_count": {
+            "type": "integer",
+            "title": "Invoice Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vat_rate",
+          "total_excl",
+          "total_vat",
+          "invoice_count"
+        ],
+        "title": "VATBreakdown"
+      },
+      "VATSummary": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VATBreakdown"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "VATSummary"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VendorCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "aliases": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aliases"
+          },
+          "default_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Category"
+          },
+          "default_vat_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Vat Rate"
+          },
+          "billing_cycle": {
+            "$ref": "#/components/schemas/BillingCycle",
+            "default": "monthly"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "VendorCreate"
+      },
+      "VendorList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VendorRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "VendorList"
+      },
+      "VendorRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "aliases": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aliases"
+          },
+          "default_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Category"
+          },
+          "default_vat_rate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Vat Rate"
+          },
+          "billing_cycle": {
+            "$ref": "#/components/schemas/BillingCycle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "billing_cycle"
+        ],
+        "title": "VendorRead"
+      },
+      "VendorSpend": {
+        "properties": {
+          "vendor": {
+            "type": "string",
+            "title": "Vendor"
+          },
+          "total_excl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Excl"
+          },
+          "total_vat": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Vat"
+          },
+          "total_incl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Incl"
+          },
+          "invoice_count": {
+            "type": "integer",
+            "title": "Invoice Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vendor",
+          "total_excl",
+          "total_vat",
+          "total_incl",
+          "invoice_count"
+        ],
+        "title": "VendorSpend"
+      },
+      "VendorSpendList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VendorSpend"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "VendorSpendList"
+      },
+      "VendorUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "aliases": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aliases"
+          },
+          "default_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Category"
+          },
+          "default_vat_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Vat Rate"
+          },
+          "billing_cycle": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BillingCycle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "VendorUpdate"
+      }
+    }
+  }
+}

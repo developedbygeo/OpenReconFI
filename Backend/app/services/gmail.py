@@ -10,7 +10,7 @@ from googleapiclient.discovery import build
 
 from app.config import settings
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 
 
 @dataclass
@@ -93,5 +93,13 @@ async def fetch_unread_invoices() -> list[EmailAttachment]:
                     sender=sender,
                 )
             )
+
+    # Mark processed emails as read so they aren't fetched again
+    for msg_ref in messages:
+        service.users().messages().modify(
+            userId="me",
+            id=msg_ref["id"],
+            body={"removeLabelIds": ["UNREAD"]},
+        ).execute()
 
     return attachments

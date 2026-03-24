@@ -88,6 +88,32 @@ async def update_invoice(
     return InvoiceRead.model_validate(invoice)
 
 
+@router.delete("", tags=["invoices"])
+async def delete_all_invoices(
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    result = await db.execute(select(func.count(Invoice.id)))
+    count = result.scalar_one()
+    await db.execute(select(Invoice))  # load for cascade
+    from sqlalchemy import text
+    await db.execute(text("DELETE FROM invoices"))
+    await db.commit()
+    return {"deleted": count}
+
+
+@router.delete("/{invoice_id}", status_code=204, tags=["invoices"])
+async def delete_invoice(
+    invoice_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    invoice = result.scalar_one_or_none()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    await db.delete(invoice)
+    await db.commit()
+
+
 @router.post("/upload", response_model=InvoiceRead, status_code=201, tags=["invoices"])
 async def upload_invoice(
     file: UploadFile,

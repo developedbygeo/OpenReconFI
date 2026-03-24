@@ -3,7 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Numeric, Text, text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 from app.models.enums import ConfirmedBy
@@ -39,3 +39,6 @@ class Match(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+
+    invoice = relationship("Invoice", lazy="joined")
+    transaction = relationship("Transaction", lazy="joined")

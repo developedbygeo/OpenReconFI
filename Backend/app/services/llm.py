@@ -27,7 +27,7 @@ You are an invoice data extractor. Extract the following fields from the invoice
 Return ONLY valid JSON, no markdown fences.
 
 Required fields:
-- vendor: string (company name on the invoice)
+- vendor: string — the company/business name that issued the invoice. This must be ONLY the company name (e.g. "Vercel", "AWS", "Google Cloud"). Do NOT include descriptions like "excl. VAT", amounts, or other text.
 - invoice_number: string
 - invoice_date: string (YYYY-MM-DD)
 - amount_excl: number (amount excluding VAT)
@@ -36,6 +36,7 @@ Required fields:
 - vat_rate: number (e.g. 21.0 for 21%)
 - currency: string (e.g. "EUR")
 - iban: string or null
+- category: string — classify the expense into one of: "SaaS", "Infrastructure", "Marketing", "Legal", "Accounting", "Insurance", "Office", "Travel", "Telecom", "Freelancers", "Other". Pick the best fit based on the vendor and invoice contents.
 
 Invoice text:
 {text}
@@ -74,6 +75,7 @@ async def extract_invoice_from_pdf(pdf_bytes: bytes) -> dict[str, Any]:
         "amount_incl": Decimal(str(data["amount_incl"])),
         "vat_amount": Decimal(str(data["vat_amount"])),
         "vat_rate": Decimal(str(data["vat_rate"])),
+        "category": data.get("category"),
         "raw": data,
     }
 
@@ -93,11 +95,15 @@ Amount sign convention:
 - If the statement uses unsigned amounts with a type indicator, infer the sign from the label
 
 For each transaction, extract:
-- tx_date: string (YYYY-MM-DD)
-- amount: number (negative = debit, positive = credit)
+- tx_date: string (YYYY-MM-DD) — the booking/execution date
+- value_date: string (YYYY-MM-DD) or null — the valeur/value date if present (the date the bank actually processes the funds, which may differ from the booking date)
+- amount: number (negative = debit, positive = credit) — in the account's base currency (EUR)
+- original_amount: number or null — if the transaction involved a currency conversion, this is the amount in the original foreign currency
+- original_currency: string or null — ISO 4217 currency code of the original amount (e.g. "USD", "GBP") if different from EUR
 - description: string (raw bank description text)
 - counterparty: string (who the payment is to/from)
 - counterparty_iban: string or null
+- no_invoice: boolean — set to true if this transaction will never have a matching invoice (e.g. tax payments, VAT/BTW remittances, government charges, bank fees, interest, currency conversion fees, salary/payroll). Set to false for normal vendor payments.
 
 Bank statement text:
 {text}
@@ -121,12 +127,34 @@ def _validate_transaction(tx: dict[str, Any]) -> dict[str, Any]:
     except (InvalidOperation, TypeError) as e:
         raise ValueError(f"Invalid amount '{tx['amount']}': {e}")
 
+    # Optional value_date
+    value_date = None
+    if tx.get("value_date"):
+        try:
+            value_date = date.fromisoformat(str(tx["value_date"]))
+        except (ValueError, TypeError):
+            pass
+
+    # Optional original amount + currency (foreign currency conversion)
+    original_amount = None
+    if tx.get("original_amount") is not None:
+        try:
+            original_amount = Decimal(str(tx["original_amount"]))
+        except (InvalidOperation, TypeError):
+            pass
+
+    original_currency = tx.get("original_currency")
+
     return {
         "tx_date": tx_date,
+        "value_date": value_date,
         "amount": amount,
+        "original_amount": original_amount,
+        "original_currency": original_currency,
         "description": str(tx["description"]),
         "counterparty": str(tx["counterparty"]),
         "counterparty_iban": tx.get("counterparty_iban"),
+        "no_invoice": bool(tx.get("no_invoice", False)),
     }
 
 
@@ -169,6 +197,9 @@ Rules:
 - Each invoice should match at most one transaction and vice versa
 - Only suggest matches you are reasonably confident about (confidence >= 0.5)
 - Confidence is 0.00 to 1.00
+- Date tolerance: the bank transaction date or value_date may differ from the invoice date by several days (processing delay). Allow up to 10 days difference.
+- Currency conversion: if a transaction has original_amount and original_currency, the invoice amount may be in the original currency (e.g. USD) while the transaction amount is the EUR equivalent. Match on original_amount when the invoice currency differs from EUR.
+- Conversion fees: foreign currency payments often have a separate small transaction for the conversion fee (typically €0.50–€2.00). When you see a main debit matching a foreign currency invoice followed by a small fee transaction with a similar date and description mentioning "conversion", "fee", "kosten", or "wisselkoers", group them together — match the main debit to the invoice and note the fee in the rationale.
 
 Return ONLY a valid JSON array, no markdown fences. Each element:
 - invoice_id: string (UUID of the invoice)

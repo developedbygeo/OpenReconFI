@@ -20,7 +20,10 @@ class Transaction(Base):
         server_default=text("gen_random_uuid()"),
     )
     tx_date: Mapped[date] = mapped_column(Date, nullable=False)
+    value_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    original_amount: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    original_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     counterparty: Mapped[str] = mapped_column(Text, nullable=False)
     counterparty_iban: Mapped[str | None] = mapped_column(Text, nullable=True)

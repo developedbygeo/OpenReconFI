@@ -4,9 +4,11 @@ import calendar
 from decimal import Decimal
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.invoice import Invoice
+from app.models.vendor import Vendor
 from app.services.drive import upload_pdf
 from app.services.gmail import fetch_unread_invoices
 from app.services.llm import extract_invoice_from_pdf
@@ -23,16 +25,55 @@ def _build_filename(
     return f"{period}_{safe_vendor}_{amount_str}_{safe_inv_num}.pdf"
 
 
+async def _ensure_vendor(
+    db: AsyncSession, vendor_name: str, category: str | None
+) -> Vendor:
+    """Get or create a Vendor record. Returns the vendor."""
+    result = await db.execute(
+        select(Vendor).where(Vendor.name == vendor_name)
+    )
+    vendor = result.scalar_one_or_none()
+    if vendor is not None:
+        return vendor
+
+    vendor = Vendor(
+        name=vendor_name,
+        default_category=category,
+    )
+    db.add(vendor)
+    await db.flush()
+    return vendor
+
+
 async def run_collection(db: AsyncSession) -> dict[str, Any]:
     """Run the full collection pipeline. Returns a summary dict."""
     attachments = await fetch_unread_invoices()
 
     processed = 0
+    skipped = 0
     errors: list[str] = []
 
     for att in attachments:
         try:
             extracted = await extract_invoice_from_pdf(att.data)
+
+            # Deduplicate by invoice number
+            existing = await db.execute(
+                select(Invoice.id).where(
+                    Invoice.invoice_number == extracted["invoice_number"]
+                )
+            )
+            if existing.scalar_one_or_none() is not None:
+                skipped += 1
+                continue
+
+            # Auto-create vendor if new
+            category = extracted.get("category")
+            vendor = await _ensure_vendor(db, extracted["vendor"], category)
+
+            # Use vendor's default category if LLM didn't assign one
+            if not category and vendor.default_category:
+                category = vendor.default_category
 
             filename = _build_filename(
                 extracted["invoice_date"],
@@ -56,6 +97,7 @@ async def run_collection(db: AsyncSession) -> dict[str, Any]:
                 vat_rate=extracted["vat_rate"],
                 invoice_date=extracted["invoice_date"],
                 invoice_number=extracted["invoice_number"],
+                category=category,
                 source="gmail",
                 status="pending",
                 period=period,
@@ -74,5 +116,6 @@ async def run_collection(db: AsyncSession) -> dict[str, Any]:
     return {
         "emails_found": len(attachments),
         "invoices_processed": processed,
+        "skipped_duplicates": skipped,
         "errors": errors,
     }

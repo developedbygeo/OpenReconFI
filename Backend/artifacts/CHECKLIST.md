@@ -107,11 +107,11 @@
 - [x] Regenerate `openapi.json` + `pnpm generate:api`
 
 ### Frontend
-- [ ] Vendor list + detail view
-- [ ] Vendor create / edit form — name, aliases, billing cycle, default category, default VAT rate
-- [ ] Vendor invoice history view
-- [ ] Missing invoice alerts on dashboard
-- [ ] MSW handlers for vendors + dashboard
+- [x] Vendor list + detail view
+- [x] Vendor create / edit form — name, aliases, billing cycle, default category, default VAT rate
+- [x] Vendor invoice history view
+- [x] Missing invoice alerts on dashboard
+- [x] MSW handlers for vendors + dashboard
 
 ---
 
@@ -131,19 +131,19 @@
 - [x] Regenerate `openapi.json` + `pnpm generate:api`
 
 ### Frontend — Dashboard
-- [ ] KPI cards — total spend ex VAT, total VAT, invoice count, match rate
-- [ ] Spend by category chart (Mantine Charts)
-- [ ] Spend by vendor chart
-- [ ] MoM comparison chart
-- [ ] VAT summary
-- [ ] Missing invoice alert list
+- [x] KPI cards — total spend ex VAT, total VAT, invoice count, match rate
+- [x] Spend by category chart (Mantine Charts)
+- [x] Spend by vendor chart
+- [x] MoM comparison chart
+- [x] VAT summary
+- [x] Missing invoice alert list
 
 ### Frontend — Reports
-- [ ] Timeframe selector — single month / quarter / YTD / full year / custom range
-- [ ] Custom range: `MonthPickerInput` from `@mantine/dates`
-- [ ] Format picker — PDF / Excel
-- [ ] Download trigger + loading state
-- [ ] MSW handlers for reports
+- [x] Timeframe selector — single month / quarter / YTD / full year / custom range
+- [x] Custom range: `MonthPickerInput` from `@mantine/dates`
+- [x] Format picker — PDF / Excel
+- [x] Download trigger + loading state
+- [x] MSW handlers for reports
 
 ### Portal Scrapers
 - [x] `scrapers/base.py` — abstract `PortalScraper` base class
@@ -187,8 +187,8 @@
 - [ ] pgvector index: `CREATE INDEX ON invoices USING ivfflat (embedding vector_cosine_ops)` (add after backfill, not before)
 
 ### Frontend — Chat UI
-- [ ] Chat panel — message thread, streamed assistant response, input box
-- [ ] Retrieved invoice chips below assistant messages — clicking opens invoice detail view
-- [ ] "Clear conversation" button
-- [ ] Empty state with suggested starter questions: *"What are my top 5 vendors by spend?", "What subscriptions haven't been used recently?", "What can I cut to save money?"*
-- [ ] MSW handlers for chat endpoints
+- [x] Chat panel — message thread, streamed assistant response, input box
+- [x] Retrieved invoice chips below assistant messages — clicking opens invoice detail view
+- [x] "Clear conversation" button
+- [x] Empty state with suggested starter questions: *"What are my top 5 vendors by spend?", "What subscriptions haven't been used recently?", "What can I cut to save money?"*
+- [x] MSW handlers for chat endpoints

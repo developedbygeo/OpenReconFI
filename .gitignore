@@ -1,35 +1,3 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-.venv/
-dist/
-build/
-*.egg-info/
-
-# uv
-.python-version
-
-# Env
-.env
-.env.*
-!.env.example
-
-# DB
-*.sqlite
-*.db
-
-# Alembic
-alembic/versions/*.pyc
-
-# Pytest
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Logs
-*.log
-
 # OS
 .DS_Store
 Thumbs.db
@@ -39,9 +7,7 @@ Thumbs.db
 .idea/
 *.swp
 
-# Frontend
-node_modules/
-frontend/src/api/
-
-# Generated
-openapi.json
+# Env
+.env
+.env.*
+!.env.example

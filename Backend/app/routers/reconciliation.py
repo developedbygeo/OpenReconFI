@@ -59,14 +59,18 @@ async def upload_statement(
 
     # Store transactions
     for tx_data in parsed:
+        status = TransactionStatus.no_invoice if tx_data.get("no_invoice") else TransactionStatus.unmatched
         tx = Transaction(
             tx_date=tx_data["tx_date"],
+            value_date=tx_data.get("value_date"),
             amount=tx_data["amount"],
+            original_amount=tx_data.get("original_amount"),
+            original_currency=tx_data.get("original_currency"),
             description=tx_data["description"],
             counterparty=tx_data["counterparty"],
             counterparty_iban=tx_data.get("counterparty_iban"),
             period=tx_data["tx_date"].strftime("%Y-%m"),
-            status=TransactionStatus.unmatched,
+            status=status,
         )
         db.add(tx)
 
@@ -173,7 +177,10 @@ async def trigger_matching(
         {
             "id": str(tx.id),
             "tx_date": str(tx.tx_date),
+            "value_date": str(tx.value_date) if tx.value_date else None,
             "amount": str(tx.amount),
+            "original_amount": str(tx.original_amount) if tx.original_amount else None,
+            "original_currency": tx.original_currency,
             "description": tx.description,
             "counterparty": tx.counterparty,
             "counterparty_iban": tx.counterparty_iban,

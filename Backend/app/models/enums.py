@@ -17,6 +17,7 @@ class InvoiceStatus(str, enum.Enum):
 class TransactionStatus(str, enum.Enum):
     unmatched = "unmatched"
     matched = "matched"
+    no_invoice = "no_invoice"
 
 
 class ConfirmedBy(str, enum.Enum):

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 from uuid import UUID
@@ -6,6 +6,33 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import ConfirmedBy
+
+
+class MatchInvoiceSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    vendor: str
+    invoice_number: str
+    invoice_date: date
+    amount_excl: Decimal
+    amount_incl: Decimal
+    category: Optional[str] = None
+    drive_url: Optional[str] = None
+    period: str
+
+
+class MatchTransactionSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    tx_date: date
+    value_date: Optional[date] = None
+    amount: Decimal
+    original_amount: Optional[Decimal] = None
+    original_currency: Optional[str] = None
+    description: str
+    counterparty: str
 
 
 class MatchRead(BaseModel):
@@ -18,6 +45,8 @@ class MatchRead(BaseModel):
     rationale: str
     confirmed_by: ConfirmedBy
     confirmed_at: Optional[datetime] = None
+    invoice: Optional[MatchInvoiceSummary] = None
+    transaction: Optional[MatchTransactionSummary] = None
 
 
 class MatchList(BaseModel):

@@ -13,7 +13,10 @@ class TransactionRead(BaseModel):
 
     id: UUID
     tx_date: date
+    value_date: Optional[date] = None
     amount: Decimal
+    original_amount: Optional[Decimal] = None
+    original_currency: Optional[str] = None
     description: str
     counterparty: str
     counterparty_iban: Optional[str] = None
