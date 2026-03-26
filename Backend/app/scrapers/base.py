@@ -1,5 +1,3 @@
-"""Abstract base class for portal scrapers."""
-
 import abc
 from dataclasses import dataclass
 
