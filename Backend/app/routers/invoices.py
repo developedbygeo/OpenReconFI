@@ -16,6 +16,7 @@ router = APIRouter(prefix="/invoices", tags=["invoices"])
 async def list_invoices(
     period: Optional[str] = Query(None, description="Filter by period e.g. 2026-03"),
     status: Optional[str] = Query(None, description="Filter by status"),
+    category: Optional[str] = Query(None, description="Filter by category"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -29,6 +30,9 @@ async def list_invoices(
     if status:
         query = query.where(Invoice.status == status)
         count_query = count_query.where(Invoice.status == status)
+    if category:
+        query = query.where(Invoice.category == category)
+        count_query = count_query.where(Invoice.category == category)
 
     query = query.order_by(Invoice.created_at.desc()).offset(skip).limit(limit)
 

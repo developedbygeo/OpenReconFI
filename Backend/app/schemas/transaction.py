@@ -26,6 +26,11 @@ class TransactionRead(BaseModel):
     status: TransactionStatus
 
 
+class TransactionUpdate(BaseModel):
+    category: Optional[str] = None
+    note: Optional[str] = None
+
+
 class TransactionDismiss(BaseModel):
     note: Optional[str] = None
 

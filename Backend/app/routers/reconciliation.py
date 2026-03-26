@@ -21,7 +21,7 @@ from app.schemas.reconciliation import (
     UnmatchedInvoiceSummary,
     UnmatchedTransactionSummary,
 )
-from app.schemas.transaction import TransactionDismiss, TransactionList, TransactionRead
+from app.schemas.transaction import TransactionDismiss, TransactionList, TransactionRead, TransactionUpdate
 
 router = APIRouter(prefix="/reconciliation", tags=["reconciliation"])
 
@@ -230,10 +230,37 @@ async def dismiss_transaction(
     return TransactionRead.model_validate(tx)
 
 
+@router.patch(
+    "/transactions/{transaction_id}",
+    response_model=TransactionRead,
+)
+async def update_transaction(
+    transaction_id: UUID,
+    body: TransactionUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> TransactionRead:
+    """Update a transaction's category or note."""
+    result = await db.execute(
+        select(Transaction).where(Transaction.id == transaction_id)
+    )
+    tx = result.scalar_one_or_none()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    update_data = body.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(tx, field, value)
+
+    await db.commit()
+    await db.refresh(tx)
+    return TransactionRead.model_validate(tx)
+
+
 @router.get("/transactions", response_model=TransactionList)
 async def list_transactions(
     period: Optional[str] = Query(None),
     status: Optional[TransactionStatus] = Query(None),
+    category: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -247,6 +274,9 @@ async def list_transactions(
     if status:
         query = query.where(Transaction.status == status)
         count_query = count_query.where(Transaction.status == status)
+    if category:
+        query = query.where(Transaction.category == category)
+        count_query = count_query.where(Transaction.category == category)
 
     query = query.order_by(Transaction.tx_date.desc()).offset(skip).limit(limit)
 

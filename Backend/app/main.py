@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import chat, dashboard, invoices, jobs, reconciliation, reports, vendors
+from app.routers import categories, chat, dashboard, invoices, jobs, reconciliation, reports, vendors
 
 app = FastAPI(
     title="Matchbook API",
@@ -18,6 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(categories.router)
 app.include_router(invoices.router)
 app.include_router(jobs.router)
 app.include_router(reconciliation.router)
