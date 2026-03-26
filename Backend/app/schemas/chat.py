@@ -1,5 +1,3 @@
-"""Chat schemas — request/response for expense chat."""
-
 from datetime import datetime
 from typing import Optional
 from uuid import UUID

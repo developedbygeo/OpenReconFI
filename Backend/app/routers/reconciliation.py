@@ -12,27 +12,23 @@ from app.models.invoice import Invoice
 from app.models.match import Match
 from app.models.transaction import Transaction
 from app.models.vendor import Vendor
-from app.schemas.match import MatchConfirm, MatchList, MatchRead, MatchReassign
+from app.schemas.match import MatchConfirm, MatchCreate, MatchList, MatchRead, MatchReassign
 from app.schemas.reconciliation import (
     MatchTriggerRequest,
     MatchTriggerResponse,
+    PeriodReconciliation,
     StatementUploadResponse,
+    UnmatchedInvoiceSummary,
+    UnmatchedTransactionSummary,
 )
-from app.schemas.transaction import TransactionList, TransactionRead
+from app.schemas.transaction import TransactionDismiss, TransactionList, TransactionRead
 
 router = APIRouter(prefix="/reconciliation", tags=["reconciliation"])
-
-
-# ---------------------------------------------------------------------------
-# Statement upload
-# ---------------------------------------------------------------------------
-
 
 @router.post(
     "/upload",
     response_model=StatementUploadResponse,
     status_code=201,
-    tags=["reconciliation"],
 )
 async def upload_statement(
     file: UploadFile,
@@ -59,7 +55,16 @@ async def upload_statement(
 
     # Store transactions
     for tx_data in parsed:
-        status = TransactionStatus.no_invoice if tx_data.get("no_invoice") else TransactionStatus.unmatched
+        # Detect withholdings by description as fallback
+        desc_upper = tx_data["description"].upper()
+        is_withholding = tx_data.get("withholding") or "ΕΝΑΝΤΙ ΚΕΡΔ" in desc_upper or "ENANTI KERD" in desc_upper
+
+        if is_withholding:
+            status = TransactionStatus.withholding
+        elif tx_data.get("no_invoice"):
+            status = TransactionStatus.no_invoice
+        else:
+            status = TransactionStatus.unmatched
         tx = Transaction(
             tx_date=tx_data["tx_date"],
             value_date=tx_data.get("value_date"),
@@ -69,6 +74,7 @@ async def upload_statement(
             description=tx_data["description"],
             counterparty=tx_data["counterparty"],
             counterparty_iban=tx_data.get("counterparty_iban"),
+            category=tx_data.get("category"),
             period=tx_data["tx_date"].strftime("%Y-%m"),
             status=status,
         )
@@ -82,12 +88,149 @@ async def upload_statement(
     )
 
 
-# ---------------------------------------------------------------------------
-# Transactions
-# ---------------------------------------------------------------------------
+@router.get(
+    "/overview",
+    response_model=PeriodReconciliation,
+)
+async def period_overview(
+    period: str = Query(description="Period to reconcile (YYYY-MM)"),
+    db: AsyncSession = Depends(get_db),
+) -> PeriodReconciliation:
+    """Full reconciliation overview for a period — shows whether the month is complete."""
+    from decimal import Decimal
+
+    # Invoices
+    inv_result = await db.execute(
+        select(Invoice).where(Invoice.period == period)
+    )
+    invoices = inv_result.scalars().all()
+
+    total_invoices = len(invoices)
+    matched_invoices = sum(1 for i in invoices if i.status == InvoiceStatus.matched)
+    unmatched_invoices_list = [i for i in invoices if i.status != InvoiceStatus.matched]
+    total_invoiced_incl = sum(i.amount_incl for i in invoices)
+
+    # All transactions for the period
+    tx_result = await db.execute(
+        select(Transaction).where(Transaction.period == period)
+    )
+    transactions = tx_result.scalars().all()
+
+    # Split by type
+    expense_txs = [t for t in transactions if t.amount < 0 and t.status not in (TransactionStatus.withholding,)]
+    no_invoice_txs = [t for t in expense_txs if t.status == TransactionStatus.no_invoice]
+    matchable_txs = [t for t in expense_txs if t.status != TransactionStatus.no_invoice]
+    withholding_txs = [t for t in transactions if t.status == TransactionStatus.withholding]
+    earning_txs = [t for t in transactions if t.amount > 0]
+
+    matched_txs = [t for t in matchable_txs if t.status == TransactionStatus.matched]
+    unmatched_txs = [t for t in matchable_txs if t.status == TransactionStatus.unmatched]
+
+    total_bank_debits = abs(sum(t.amount for t in expense_txs))
+    no_invoice_total = abs(sum(t.amount for t in no_invoice_txs))
+    withholding_total = abs(sum(t.amount for t in withholding_txs))
+    earnings_total = sum(t.amount for t in earning_txs)
+
+    # Gap: bank debits (excluding no_invoice + withholdings) vs invoiced amount
+    matchable_debits = abs(sum(t.amount for t in matchable_txs))
+    gap = matchable_debits - total_invoiced_incl
+
+    is_complete = (
+        len(unmatched_invoices_list) == 0
+        and len(unmatched_txs) == 0
+        and total_invoices > 0
+    )
+
+    return PeriodReconciliation(
+        period=period,
+        is_complete=is_complete,
+        total_invoices=total_invoices,
+        matched_invoices=matched_invoices,
+        unmatched_invoices=len(unmatched_invoices_list),
+        total_invoiced_incl=total_invoiced_incl,
+        total_transactions=len(matchable_txs),
+        matched_transactions=len(matched_txs),
+        unmatched_transactions=len(unmatched_txs),
+        total_bank_debits=total_bank_debits,
+        no_invoice_count=len(no_invoice_txs),
+        no_invoice_total=no_invoice_total,
+        withholding_count=len(withholding_txs),
+        withholding_total=withholding_total,
+        earnings_count=len(earning_txs),
+        earnings_total=earnings_total,
+        gap=gap,
+        unmatched_invoice_list=[
+            UnmatchedInvoiceSummary(
+                id=i.id,
+                vendor=i.vendor,
+                invoice_number=i.invoice_number,
+                amount_incl=i.amount_incl,
+                invoice_date=str(i.invoice_date),
+                category=i.category,
+            )
+            for i in unmatched_invoices_list
+        ],
+        unmatched_transaction_list=[
+            UnmatchedTransactionSummary(
+                id=t.id,
+                counterparty=t.counterparty,
+                description=t.description,
+                amount=t.amount,
+                tx_date=str(t.tx_date),
+                category=t.category,
+            )
+            for t in unmatched_txs
+        ],
+    )
 
 
-@router.get("/transactions", response_model=TransactionList, tags=["reconciliation"])
+@router.delete("/transactions")
+async def delete_all_transactions(
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Delete all transactions (and their matches), reset linked invoice statuses."""
+    from sqlalchemy import text, update
+
+    # Reset invoices that were matched via now-deleted matches back to unmatched
+    await db.execute(
+        update(Invoice)
+        .where(Invoice.status == InvoiceStatus.matched)
+        .values(status=InvoiceStatus.unmatched)
+    )
+    await db.execute(text("DELETE FROM matches"))
+    result = await db.execute(select(func.count(Transaction.id)))
+    count = result.scalar_one()
+    await db.execute(text("DELETE FROM transactions"))
+    await db.commit()
+    return {"deleted": count}
+
+
+@router.post(
+    "/transactions/{transaction_id}/dismiss",
+    response_model=TransactionRead,
+)
+async def dismiss_transaction(
+    transaction_id: UUID,
+    body: TransactionDismiss,
+    db: AsyncSession = Depends(get_db),
+) -> TransactionRead:
+    """Dismiss a transaction — mark as no_invoice with an optional note (e.g. 'currency conversion fee')."""
+    result = await db.execute(
+        select(Transaction).where(Transaction.id == transaction_id)
+    )
+    tx = result.scalar_one_or_none()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    tx.status = TransactionStatus.no_invoice
+    if body.note:
+        tx.note = body.note
+    await db.commit()
+    await db.refresh(tx)
+    return TransactionRead.model_validate(tx)
+
+
+@router.get("/transactions", response_model=TransactionList)
 async def list_transactions(
     period: Optional[str] = Query(None),
     status: Optional[TransactionStatus] = Query(None),
@@ -119,105 +262,75 @@ async def list_transactions(
     )
 
 
-# ---------------------------------------------------------------------------
-# Match trigger
-# ---------------------------------------------------------------------------
-
-
-@router.post("/match", response_model=MatchTriggerResponse, tags=["reconciliation"])
+@router.post("/match", response_model=MatchTriggerResponse)
 async def trigger_matching(
     body: MatchTriggerRequest,
     db: AsyncSession = Depends(get_db),
 ) -> MatchTriggerResponse:
-    """Trigger LLM matching for a given period."""
-    from app.services.llm import match_invoices_transactions
+    """Trigger hybrid matching: deterministic first, then LLM for leftovers."""
+    from app.services.matcher import run_matching
 
-    # Fetch unmatched invoices for the period
+    result = await run_matching(db, period=body.period)
+
+    total = len(result.deterministic_matches) + len(result.llm_matches)
+    return MatchTriggerResponse(
+        matches_suggested=total,
+        period=body.period,
+        deterministic_matches=len(result.deterministic_matches),
+        llm_matches=len(result.llm_matches),
+        fees_dismissed=len(result.fees_dismissed),
+    )
+
+@router.post("/matches", response_model=MatchRead, status_code=201)
+async def create_match(
+    body: MatchCreate,
+    db: AsyncSession = Depends(get_db),
+) -> MatchRead:
+    """Manually create a match between an unmatched invoice and transaction."""
+    # Validate invoice exists and is unmatched
     inv_result = await db.execute(
-        select(Invoice).where(
-            Invoice.period == body.period,
-            Invoice.status.in_([InvoiceStatus.pending, InvoiceStatus.unmatched]),
-        )
+        select(Invoice).where(Invoice.id == body.invoice_id)
     )
-    invoices = inv_result.scalars().all()
+    invoice = inv_result.scalar_one_or_none()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.status == InvoiceStatus.matched:
+        raise HTTPException(status_code=409, detail="Invoice is already matched")
 
-    # Fetch unmatched transactions for the period
+    # Validate transaction exists and is unmatched
     tx_result = await db.execute(
-        select(Transaction).where(
-            Transaction.period == body.period,
-            Transaction.status == TransactionStatus.unmatched,
-        )
+        select(Transaction).where(Transaction.id == body.transaction_id)
     )
-    transactions = tx_result.scalars().all()
+    transaction = tx_result.scalar_one_or_none()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if transaction.status == TransactionStatus.matched:
+        raise HTTPException(status_code=409, detail="Transaction is already matched")
 
-    if not invoices or not transactions:
-        return MatchTriggerResponse(matches_suggested=0, period=body.period)
-
-    # Fetch vendor aliases
-    vendor_result = await db.execute(select(Vendor))
-    vendors = vendor_result.scalars().all()
-    aliases = [
-        {"name": v.name, "aliases": v.aliases or []}
-        for v in vendors
-    ]
-
-    # Prepare data for LLM
-    invoices_data = [
-        {
-            "id": str(inv.id),
-            "vendor": inv.vendor,
-            "amount_incl": str(inv.amount_incl),
-            "amount_excl": str(inv.amount_excl),
-            "invoice_date": str(inv.invoice_date),
-            "invoice_number": inv.invoice_number,
-        }
-        for inv in invoices
-    ]
-    transactions_data = [
-        {
-            "id": str(tx.id),
-            "tx_date": str(tx.tx_date),
-            "value_date": str(tx.value_date) if tx.value_date else None,
-            "amount": str(tx.amount),
-            "original_amount": str(tx.original_amount) if tx.original_amount else None,
-            "original_currency": tx.original_currency,
-            "description": tx.description,
-            "counterparty": tx.counterparty,
-            "counterparty_iban": tx.counterparty_iban,
-        }
-        for tx in transactions
-    ]
-
-    # LLM matching
-    suggestions = await match_invoices_transactions(
-        invoices_data, transactions_data, aliases
+    # Create the match
+    match = Match(
+        invoice_id=body.invoice_id,
+        transaction_id=body.transaction_id,
+        confidence=1.00,
+        rationale="Manual match by user",
+        confirmed_by=ConfirmedBy.user,
+        confirmed_at=datetime.now(timezone.utc),
     )
+    db.add(match)
 
-    # Store matches
-    for s in suggestions:
-        match = Match(
-            invoice_id=s["invoice_id"],
-            transaction_id=s["transaction_id"],
-            confidence=s["confidence"],
-            rationale=s["rationale"],
-            confirmed_by=ConfirmedBy.llm,
-        )
-        db.add(match)
+    # Update statuses
+    invoice.status = InvoiceStatus.matched
+    transaction.status = TransactionStatus.matched
+
+    # Learn vendor alias
+    await _learn_vendor_alias(db, invoice, transaction)
 
     await db.commit()
-
-    return MatchTriggerResponse(
-        matches_suggested=len(suggestions),
-        period=body.period,
-    )
+    await db.refresh(match)
+    return MatchRead.model_validate(match)
 
 
-# ---------------------------------------------------------------------------
-# Match CRUD
-# ---------------------------------------------------------------------------
-
-
-@router.get("/matches", response_model=MatchList, tags=["reconciliation"])
+@router.get("/matches", response_model=MatchList)
 async def list_matches(
     period: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
@@ -249,7 +362,7 @@ async def list_matches(
     )
 
 
-@router.get("/matches/{match_id}", response_model=MatchRead, tags=["reconciliation"])
+@router.get("/matches/{match_id}", response_model=MatchRead)
 async def get_match(
     match_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -264,7 +377,6 @@ async def get_match(
 @router.post(
     "/matches/{match_id}/confirm",
     response_model=MatchRead,
-    tags=["reconciliation"],
 )
 async def confirm_match(
     match_id: UUID,
@@ -280,7 +392,6 @@ async def confirm_match(
     match.confirmed_by = ConfirmedBy.user
     match.confirmed_at = datetime.now(timezone.utc)
 
-    # Update invoice status
     inv_result = await db.execute(
         select(Invoice).where(Invoice.id == match.invoice_id)
     )
@@ -307,7 +418,6 @@ async def confirm_match(
 @router.delete(
     "/matches/{match_id}",
     response_model=MatchRead,
-    tags=["reconciliation"],
 )
 async def reject_match(
     match_id: UUID,
@@ -344,7 +454,6 @@ async def reject_match(
 @router.patch(
     "/matches/{match_id}/reassign",
     response_model=MatchRead,
-    tags=["reconciliation"],
 )
 async def reassign_match(
     match_id: UUID,
@@ -381,12 +490,6 @@ async def reassign_match(
     await db.commit()
     await db.refresh(match)
     return MatchRead.model_validate(match)
-
-
-# ---------------------------------------------------------------------------
-# Vendor alias learning (internal)
-# ---------------------------------------------------------------------------
-
 
 async def _learn_vendor_alias(
     db: AsyncSession,

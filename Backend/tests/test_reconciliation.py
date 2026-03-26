@@ -56,3 +56,19 @@ async def test_match_trigger_no_data(client: AsyncClient):
     data = resp.json()
     assert data["matches_suggested"] == 0
     assert data["period"] == "2026-03"
+    assert data["deterministic_matches"] == 0
+    assert data["llm_matches"] == 0
+    assert data["fees_dismissed"] == 0
+
+
+@pytest.mark.asyncio
+async def test_match_trigger_no_period(client: AsyncClient):
+    """Triggering match without period matches all unmatched items."""
+    resp = await client.post(
+        "/reconciliation/match",
+        json={},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["matches_suggested"] == 0
+    assert data["period"] is None

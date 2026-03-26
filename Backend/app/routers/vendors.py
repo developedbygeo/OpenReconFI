@@ -14,7 +14,7 @@ from app.schemas.vendor import VendorCreate, VendorList, VendorRead, VendorUpdat
 router = APIRouter(prefix="/vendors", tags=["vendors"])
 
 
-@router.get("", response_model=VendorList, tags=["vendors"])
+@router.get("", response_model=VendorList)
 async def list_vendors(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -35,7 +35,7 @@ async def list_vendors(
     )
 
 
-@router.get("/{vendor_id}", response_model=VendorRead, tags=["vendors"])
+@router.get("/{vendor_id}", response_model=VendorRead)
 async def get_vendor(
     vendor_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -47,7 +47,7 @@ async def get_vendor(
     return VendorRead.model_validate(vendor)
 
 
-@router.post("", response_model=VendorRead, status_code=201, tags=["vendors"])
+@router.post("", response_model=VendorRead, status_code=201)
 async def create_vendor(
     body: VendorCreate,
     db: AsyncSession = Depends(get_db),
@@ -59,7 +59,7 @@ async def create_vendor(
     return VendorRead.model_validate(vendor)
 
 
-@router.patch("/{vendor_id}", response_model=VendorRead, tags=["vendors"])
+@router.patch("/{vendor_id}", response_model=VendorRead)
 async def update_vendor(
     vendor_id: UUID,
     body: VendorUpdate,
@@ -79,7 +79,7 @@ async def update_vendor(
     return VendorRead.model_validate(vendor)
 
 
-@router.delete("/{vendor_id}", response_model=VendorRead, tags=["vendors"])
+@router.delete("/{vendor_id}", response_model=VendorRead)
 async def delete_vendor(
     vendor_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -98,7 +98,6 @@ async def delete_vendor(
 @router.get(
     "/{vendor_id}/invoices",
     response_model=InvoiceList,
-    tags=["vendors"],
 )
 async def get_vendor_invoices(
     vendor_id: UUID,

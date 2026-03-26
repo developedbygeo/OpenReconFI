@@ -20,8 +20,14 @@ class TransactionRead(BaseModel):
     description: str
     counterparty: str
     counterparty_iban: Optional[str] = None
+    category: Optional[str] = None
+    note: Optional[str] = None
     period: str
     status: TransactionStatus
+
+
+class TransactionDismiss(BaseModel):
+    note: Optional[str] = None
 
 
 class TransactionList(BaseModel):

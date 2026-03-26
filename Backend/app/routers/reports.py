@@ -1,5 +1,3 @@
-"""Reports router — timeframe + format picker, file download + Drive upload."""
-
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -25,7 +23,6 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 @router.post(
     "/generate",
     response_class=Response,
-    tags=["reports"],
 )
 async def generate_report(
     body: ReportRequest,
@@ -86,7 +83,6 @@ async def _upload_report_to_drive(
 @router.post(
     "/preview",
     response_model=ReportMeta,
-    tags=["reports"],
 )
 async def preview_report(body: ReportRequest) -> ReportMeta:
     """Preview what a report would contain without generating it."""

@@ -9,21 +9,29 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
-from app.models.enums import BillingCycle, InvoiceStatus
+from app.models.enums import BillingCycle, InvoiceStatus, TransactionStatus
 from app.models.invoice import Invoice
+from app.models.transaction import Transaction
 from app.models.vendor import Vendor
 from app.schemas.dashboard import (
     CategorySpend,
     CategorySpendList,
+    EarningsSummary,
+    EarningTransaction,
     MissingInvoiceAlert,
     MissingInvoiceAlertList,
     MoMComparison,
     MonthlySpend,
     SpendSummary,
+    TaxCategoryBreakdown,
+    TaxSummary,
+    TaxTransaction,
     VATBreakdown,
     VATSummary,
     VendorSpend,
     VendorSpendList,
+    WithholdingSummary,
+    WithholdingTransaction,
 )
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -35,13 +43,11 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
 def _billing_cycle_months(cycle: BillingCycle) -> int | None:
-    """Return the number of months between expected invoices, or None if irregular."""
+    """Return the number of months between expected invoices, or None if one-off."""
     return {
         BillingCycle.monthly: 1,
-        BillingCycle.bimonthly: 2,
-        BillingCycle.quarterly: 3,
         BillingCycle.annual: 12,
-        BillingCycle.irregular: None,
+        BillingCycle.one_off: None,
     }[cycle]
 
 
@@ -66,7 +72,6 @@ def _default_period() -> str:
 @router.get(
     "/missing-invoices",
     response_model=MissingInvoiceAlertList,
-    tags=["dashboard"],
 )
 async def missing_invoice_alerts(
     as_of: str = Query(
@@ -80,7 +85,7 @@ async def missing_invoice_alerts(
         as_of = _default_period()
 
     vendor_result = await db.execute(
-        select(Vendor).where(Vendor.billing_cycle != BillingCycle.irregular)
+        select(Vendor).where(Vendor.billing_cycle != BillingCycle.one_off)
     )
     vendors = vendor_result.scalars().all()
 
@@ -144,7 +149,6 @@ async def missing_invoice_alerts(
 @router.get(
     "/spend-summary",
     response_model=SpendSummary,
-    tags=["dashboard"],
 )
 async def spend_summary(
     period: str = Query(
@@ -187,7 +191,6 @@ async def spend_summary(
 @router.get(
     "/spend-by-category",
     response_model=CategorySpendList,
-    tags=["dashboard"],
 )
 async def spend_by_category(
     period: str = Query(
@@ -237,7 +240,6 @@ async def spend_by_category(
 @router.get(
     "/spend-by-vendor",
     response_model=VendorSpendList,
-    tags=["dashboard"],
 )
 async def spend_by_vendor(
     period: str = Query(
@@ -286,7 +288,6 @@ async def spend_by_vendor(
 @router.get(
     "/vat-summary",
     response_model=VATSummary,
-    tags=["dashboard"],
 )
 async def vat_summary(
     period: str = Query(
@@ -333,7 +334,6 @@ async def vat_summary(
 @router.get(
     "/mom-comparison",
     response_model=MoMComparison,
-    tags=["dashboard"],
 )
 async def mom_comparison(
     year: int = Query(
@@ -373,4 +373,171 @@ async def mom_comparison(
             )
             for row in rows
         ]
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tax / no-invoice transactions (Phase 4)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/tax-summary",
+    response_model=TaxSummary,
+)
+async def tax_summary(
+    period: str = Query(
+        default=None,
+        description="Period filter (YYYY-MM). Defaults to current month.",
+    ),
+    db: AsyncSession = Depends(get_db),
+) -> TaxSummary:
+    """Tax and non-invoiceable transactions for the given period (bank fees, tax payments, etc.)."""
+    if period is None:
+        period = _default_period()
+
+    result = await db.execute(
+        select(Transaction)
+        .where(
+            Transaction.period == period,
+            Transaction.status == TransactionStatus.no_invoice,
+            Transaction.amount < 0,
+        )
+        .order_by(Transaction.tx_date)
+    )
+    transactions = result.scalars().all()
+
+    total = sum(tx.amount for tx in transactions)
+
+    # Group by category
+    cat_totals: dict[str, dict] = {}
+    for tx in transactions:
+        cat = tx.category or "Uncategorized"
+        if cat not in cat_totals:
+            cat_totals[cat] = {"total": Decimal(0), "count": 0}
+        cat_totals[cat]["total"] += tx.amount
+        cat_totals[cat]["count"] += 1
+
+    return TaxSummary(
+        period=period,
+        total_amount=total,
+        transaction_count=len(transactions),
+        by_category=[
+            TaxCategoryBreakdown(
+                category=cat,
+                total_amount=data["total"],
+                transaction_count=data["count"],
+            )
+            for cat, data in sorted(cat_totals.items(), key=lambda x: x[1]["total"])
+        ],
+        items=[
+            TaxTransaction(
+                id=tx.id,
+                tx_date=str(tx.tx_date),
+                amount=tx.amount,
+                description=tx.description,
+                counterparty=tx.counterparty,
+                category=tx.category,
+            )
+            for tx in transactions
+        ],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Earnings (credits / incoming payments)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/earnings",
+    response_model=EarningsSummary,
+)
+async def earnings(
+    period: str = Query(
+        default=None,
+        description="Period filter (YYYY-MM). Defaults to current month.",
+    ),
+    db: AsyncSession = Depends(get_db),
+) -> EarningsSummary:
+    """Incoming payments (credits) for the given period."""
+    if period is None:
+        period = _default_period()
+
+    result = await db.execute(
+        select(Transaction)
+        .where(
+            Transaction.period == period,
+            Transaction.amount > 0,
+        )
+        .order_by(Transaction.tx_date)
+    )
+    transactions = result.scalars().all()
+
+    total = sum(tx.amount for tx in transactions)
+
+    return EarningsSummary(
+        period=period,
+        total_earnings=total,
+        transaction_count=len(transactions),
+        items=[
+            EarningTransaction(
+                id=tx.id,
+                tx_date=str(tx.tx_date),
+                amount=tx.amount,
+                description=tx.description,
+                counterparty=tx.counterparty,
+                category=tx.category,
+            )
+            for tx in transactions
+        ],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Withholdings (owner drawings against earnings)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/withholdings",
+    response_model=WithholdingSummary,
+)
+async def withholdings(
+    period: str = Query(
+        default=None,
+        description="Period filter (YYYY-MM). Defaults to current month.",
+    ),
+    db: AsyncSession = Depends(get_db),
+) -> WithholdingSummary:
+    """Owner withdrawals against earnings for the given period."""
+    if period is None:
+        period = _default_period()
+
+    result = await db.execute(
+        select(Transaction)
+        .where(
+            Transaction.period == period,
+            Transaction.status == TransactionStatus.withholding,
+        )
+        .order_by(Transaction.tx_date)
+    )
+    transactions = result.scalars().all()
+
+    total = sum(tx.amount for tx in transactions)
+
+    return WithholdingSummary(
+        period=period,
+        total_amount=total,
+        transaction_count=len(transactions),
+        items=[
+            WithholdingTransaction(
+                id=tx.id,
+                tx_date=str(tx.tx_date),
+                amount=tx.amount,
+                description=tx.description,
+                counterparty=tx.counterparty,
+            )
+            for tx in transactions
+        ],
     )

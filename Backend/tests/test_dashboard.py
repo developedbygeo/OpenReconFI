@@ -156,11 +156,11 @@ async def test_no_missing_invoice_when_up_to_date(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_missing_invoice_quarterly_vendor(client: AsyncClient):
-    """Quarterly vendor: Q1 invoice exists, checked in Q2 — should flag Q2."""
+async def test_missing_invoice_annual_vendor(client: AsyncClient):
+    """Annual vendor: Jan invoice exists, checked in next Feb — should flag next Jan."""
     await client.post(
         "/vendors",
-        json={"name": "AWS", "billing_cycle": "quarterly"},
+        json={"name": "AWS", "billing_cycle": "annual"},
     )
     await client.post(
         "/invoices",
@@ -171,25 +171,25 @@ async def test_missing_invoice_quarterly_vendor(client: AsyncClient):
             "vat_amount": "42.00",
             "vat_rate": "21.00",
             "invoice_date": "2026-01-10",
-            "invoice_number": "AWS-Q1",
+            "invoice_number": "AWS-ANNUAL",
             "source": "manual",
             "period": "2026-01",
         },
     )
 
-    resp = await client.get("/dashboard/missing-invoices", params={"as_of": "2026-04"})
+    resp = await client.get("/dashboard/missing-invoices", params={"as_of": "2027-02"})
     data = resp.json()
     assert data["total"] == 1
     assert data["items"][0]["vendor_name"] == "AWS"
-    assert data["items"][0]["expected_period"] == "2026-04"
+    assert data["items"][0]["expected_period"] == "2027-01"
 
 
 @pytest.mark.asyncio
-async def test_irregular_vendor_not_flagged(client: AsyncClient):
-    """Vendors with irregular billing cycle should never be flagged."""
+async def test_one_off_vendor_not_flagged(client: AsyncClient):
+    """Vendors with one_off billing cycle should never be flagged."""
     await client.post(
         "/vendors",
-        json={"name": "One-off Supplier", "billing_cycle": "irregular"},
+        json={"name": "One-off Supplier", "billing_cycle": "one_off"},
     )
 
     resp = await client.get("/dashboard/missing-invoices", params={"as_of": "2026-12"})

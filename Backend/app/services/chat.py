@@ -1,5 +1,3 @@
-"""Chat service — RAG pipeline for expense chat."""
-
 from collections.abc import AsyncGenerator
 from datetime import date
 from decimal import Decimal
@@ -143,10 +141,6 @@ async def _build_aggregates(db: AsyncSession) -> str:
     return "\n".join(parts) if parts else "No financial data available yet."
 
 
-# ---------------------------------------------------------------------------
-# Context builder
-# ---------------------------------------------------------------------------
-
 
 def _format_retrieved_invoices(invoices: list[Invoice]) -> str:
     """Format retrieved invoices as a compact markdown table."""
@@ -177,10 +171,6 @@ def _format_retrieved_transactions(txs: list[Transaction]) -> str:
         )
     return "\n".join(lines)
 
-
-# ---------------------------------------------------------------------------
-# Chat (streaming)
-# ---------------------------------------------------------------------------
 
 
 def _get_client() -> anthropic.AsyncAnthropic:

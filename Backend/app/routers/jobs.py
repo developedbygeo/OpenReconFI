@@ -14,7 +14,7 @@ from app.schemas.job import JobList, JobRead, JobTrigger
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
-@router.get("", response_model=JobList, tags=["jobs"])
+@router.get("", response_model=JobList)
 async def list_jobs(
     job_type: Optional[JobType] = Query(None),
     status: Optional[JobStatus] = Query(None),
@@ -46,7 +46,7 @@ async def list_jobs(
     )
 
 
-@router.get("/{job_id}", response_model=JobRead, tags=["jobs"])
+@router.get("/{job_id}", response_model=JobRead)
 async def get_job(
     job_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -58,7 +58,7 @@ async def get_job(
     return JobRead.model_validate(job)
 
 
-@router.post("", response_model=JobRead, status_code=201, tags=["jobs"])
+@router.post("", response_model=JobRead, status_code=201)
 async def trigger_job(
     body: JobTrigger,
     background_tasks: BackgroundTasks,

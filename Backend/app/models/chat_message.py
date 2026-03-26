@@ -1,5 +1,3 @@
-"""ChatMessage model — stores conversation history for expense chat."""
-
 import uuid
 from datetime import datetime
 

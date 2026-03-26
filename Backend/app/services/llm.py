@@ -1,5 +1,3 @@
-"""LLM service — Claude API for invoice extraction, statement parsing, matching."""
-
 import io
 import json
 from datetime import date
@@ -22,9 +20,22 @@ def _get_client() -> anthropic.AsyncAnthropic:
     return _client
 
 
+import re
+
+
+def _parse_json(text: str) -> Any:
+    """Parse JSON from LLM output, stripping markdown fences if present."""
+    text = text.strip()
+    # Strip ```json ... ``` or ``` ... ```
+    fence_match = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+    if fence_match:
+        text = fence_match.group(1).strip()
+    return json.loads(text)
+
+
 EXTRACTION_PROMPT = """\
 You are an invoice data extractor. Extract the following fields from the invoice text below.
-Return ONLY valid JSON, no markdown fences.
+Return ONLY valid JSON.
 
 Required fields:
 - vendor: string — the company/business name that issued the invoice. This must be ONLY the company name (e.g. "Vercel", "AWS", "Google Cloud"). Do NOT include descriptions like "excl. VAT", amounts, or other text.
@@ -65,7 +76,7 @@ async def extract_invoice_from_pdf(pdf_bytes: bytes) -> dict[str, Any]:
     )
 
     raw_text = message.content[0].text
-    data = json.loads(raw_text)
+    data = _parse_json(raw_text)
 
     return {
         "vendor": data["vendor"],
@@ -80,30 +91,24 @@ async def extract_invoice_from_pdf(pdf_bytes: bytes) -> dict[str, Any]:
     }
 
 
-# ---------------------------------------------------------------------------
-# Pipeline 02, step 2 — Statement parsing
-# ---------------------------------------------------------------------------
-
 STATEMENT_PARSING_PROMPT = """\
-You are a bank statement parser. Extract all transactions from the bank statement text below.
-Return ONLY a valid JSON array, no markdown fences.
+Extract all transactions from the bank statement below. Return ONLY a valid JSON array.
 
-Amount sign convention:
-- Debits (money going out) must be NEGATIVE
-- Credits (money coming in) must be POSITIVE
-- If the statement uses separate debit/credit columns, convert: debit → negative, credit → positive
-- If the statement uses unsigned amounts with a type indicator, infer the sign from the label
+Amounts: debits NEGATIVE, credits POSITIVE.
+Sign hints: Χ/Χρέωση/D/Debet/AF = negative; Π/Πίστωση/C/Credit/BIJ = positive.
 
-For each transaction, extract:
-- tx_date: string (YYYY-MM-DD) — the booking/execution date
-- value_date: string (YYYY-MM-DD) or null — the valeur/value date if present (the date the bank actually processes the funds, which may differ from the booking date)
-- amount: number (negative = debit, positive = credit) — in the account's base currency (EUR)
-- original_amount: number or null — if the transaction involved a currency conversion, this is the amount in the original foreign currency
-- original_currency: string or null — ISO 4217 currency code of the original amount (e.g. "USD", "GBP") if different from EUR
-- description: string (raw bank description text)
-- counterparty: string (who the payment is to/from)
-- counterparty_iban: string or null
-- no_invoice: boolean — set to true if this transaction will never have a matching invoice (e.g. tax payments, VAT/BTW remittances, government charges, bank fees, interest, currency conversion fees, salary/payroll). Set to false for normal vendor payments.
+Fields per transaction:
+  tx_date        string YYYY-MM-DD (booking date)
+  value_date     string YYYY-MM-DD | null
+  amount         number in EUR (signed)
+  original_amount  number | null (foreign currency amount if converted)
+  original_currency  string ISO 4217 | null
+  description    string (raw bank text)
+  counterparty   string
+  counterparty_iban  string | null
+  no_invoice     bool — true for expenses that never have invoices (taxes, bank fees, interest, FX fees, government charges). Always false for credits/earnings.
+  withholding    bool — true for owner drawings against earnings (e.g. "ΕΝΑΝΤΙ ΚΕΡΔΩΝ", "ΑΝΑΛΗΨΗ ΕΝΑΝΤΙ"). Not taxes or fees.
+  category       string | null — one of: Tax, VAT, Bank Fee, Insurance, Salary, Interest, Currency Conversion, Government, SaaS, Infrastructure, Marketing, Legal, Accounting, Office, Travel, Telecom, Freelancers, Other. Required when no_invoice=true, optional otherwise.
 
 Bank statement text:
 {text}
@@ -155,6 +160,8 @@ def _validate_transaction(tx: dict[str, Any]) -> dict[str, Any]:
         "counterparty": str(tx["counterparty"]),
         "counterparty_iban": tx.get("counterparty_iban"),
         "no_invoice": bool(tx.get("no_invoice", False)),
+        "withholding": bool(tx.get("withholding", False)),
+        "category": tx.get("category"),
     }
 
 
@@ -176,93 +183,81 @@ async def parse_bank_statement(statement_text: str) -> list[dict[str, Any]]:
     )
 
     raw_text = message.content[0].text
-    data = json.loads(raw_text)
+    data = _parse_json(raw_text)
 
     if not isinstance(data, list):
         raise ValueError("LLM did not return a JSON array")
 
     return [_validate_transaction(tx) for tx in data]
 
+SINGLE_MATCH_PROMPT = """\
+Does this invoice match any of these bank transactions?
 
-# ---------------------------------------------------------------------------
-# Pipeline 02, step 3 — Invoice ↔ Transaction matching
-# ---------------------------------------------------------------------------
+Invoice:
+- vendor: {vendor}
+- amount: {amount} {currency}
+- date: {invoice_date}
 
-MATCHING_PROMPT = """\
-You are a financial reconciliation engine. Match invoices to bank transactions for the same period.
-
-Rules:
-- Match by amount, date proximity, vendor name similarity, and IBAN when available
-- Use the vendor aliases to recognize bank description variants
-- Each invoice should match at most one transaction and vice versa
-- Only suggest matches you are reasonably confident about (confidence >= 0.5)
-- Confidence is 0.00 to 1.00
-- Date tolerance: the bank transaction date or value_date may differ from the invoice date by several days (processing delay). Allow up to 10 days difference.
-- Currency conversion: if a transaction has original_amount and original_currency, the invoice amount may be in the original currency (e.g. USD) while the transaction amount is the EUR equivalent. Match on original_amount when the invoice currency differs from EUR.
-- Conversion fees: foreign currency payments often have a separate small transaction for the conversion fee (typically €0.50–€2.00). When you see a main debit matching a foreign currency invoice followed by a small fee transaction with a similar date and description mentioning "conversion", "fee", "kosten", or "wisselkoers", group them together — match the main debit to the invoice and note the fee in the rationale.
-
-Return ONLY a valid JSON array, no markdown fences. Each element:
-- invoice_id: string (UUID of the invoice)
-- transaction_id: string (UUID of the transaction)
-- confidence: number (0.00 to 1.00)
-- rationale: string (brief explanation of why this is a match)
-
-Unmatched invoices:
-{invoices_json}
-
-Unmatched transactions:
+Bank transactions:
 {transactions_json}
 
-Known vendor aliases:
-{aliases_json}
+Rules:
+- The transaction amount is in EUR. If the invoice is in another currency, \
+check if the EUR amount is plausible given typical exchange rates.
+- The transaction date may differ from the invoice date by up to 10 days.
+- Only match if the vendor/counterparty clearly refers to the same company.
+- If no transaction matches, return an empty array [].
+
+Return ONLY valid JSON, no markdown fences:
+[{{"transaction_id": "...", "confidence": 0.00-1.00, "rationale": "..."}}]
+or [] if no match.
 """
 
 
-async def match_invoices_transactions(
-    invoices: list[dict[str, Any]],
+async def match_single_invoice(
+    invoice: dict[str, Any],
     transactions: list[dict[str, Any]],
-    vendor_aliases: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """Use Claude to match invoices against transactions. Returns match suggestions."""
-    if not invoices or not transactions:
-        return []
+) -> dict[str, Any] | None:
+    """Ask the LLM to find a matching transaction for a single invoice."""
+    if not transactions:
+        return None
 
     client = _get_client()
     message = await client.messages.create(
         model="claude-sonnet-4-20250514",
-        max_tokens=4096,
+        max_tokens=512,
         messages=[
             {
                 "role": "user",
-                "content": MATCHING_PROMPT.format(
-                    invoices_json=json.dumps(invoices, default=str),
+                "content": SINGLE_MATCH_PROMPT.format(
+                    vendor=invoice["vendor"],
+                    amount=invoice["amount_incl"],
+                    currency=invoice.get("currency", "EUR"),
+                    invoice_date=invoice["invoice_date"],
                     transactions_json=json.dumps(transactions, default=str),
-                    aliases_json=json.dumps(vendor_aliases, default=str),
                 ),
             },
         ],
     )
 
     raw_text = message.content[0].text
-    data = json.loads(raw_text)
+    data = _parse_json(raw_text)
 
-    if not isinstance(data, list):
-        raise ValueError("LLM did not return a JSON array")
+    if not isinstance(data, list) or len(data) == 0:
+        return None
 
-    validated: list[dict[str, Any]] = []
-    for match in data:
-        try:
-            confidence = Decimal(str(match["confidence"]))
-        except (InvalidOperation, KeyError, TypeError) as e:
-            raise ValueError(f"Invalid confidence in match: {e}")
+    match = data[0]
+    try:
+        confidence = Decimal(str(match["confidence"]))
+    except (InvalidOperation, KeyError, TypeError):
+        return None
 
-        validated.append(
-            {
-                "invoice_id": UUID(str(match["invoice_id"])),
-                "transaction_id": UUID(str(match["transaction_id"])),
-                "confidence": confidence,
-                "rationale": str(match.get("rationale", "")),
-            }
-        )
+    if confidence < Decimal("0.5"):
+        return None
 
-    return validated
+    return {
+        "invoice_id": UUID(str(invoice["id"])),
+        "transaction_id": UUID(str(match["transaction_id"])),
+        "confidence": confidence,
+        "rationale": str(match.get("rationale", "")),
+    }

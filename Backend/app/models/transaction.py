@@ -27,6 +27,8 @@ class Transaction(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     counterparty: Mapped[str] = mapped_column(Text, nullable=False)
     counterparty_iban: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[str | None] = mapped_column(Text, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
     period: Mapped[str] = mapped_column(String(7), nullable=False)
     status: Mapped[TransactionStatus] = mapped_column(
         Enum(TransactionStatus, name="transaction_status", native_enum=True),

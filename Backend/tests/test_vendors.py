@@ -57,11 +57,11 @@ async def test_update_vendor(client: AsyncClient):
 
     resp = await client.patch(
         f"/vendors/{vendor_id}",
-        json={"billing_cycle": "quarterly", "aliases": ["DO", "DIGITALOCEAN"]},
+        json={"billing_cycle": "annual", "aliases": ["DO", "DIGITALOCEAN"]},
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert data["billing_cycle"] == "quarterly"
+    assert data["billing_cycle"] == "annual"
     assert data["aliases"] == ["DO", "DIGITALOCEAN"]
 
 

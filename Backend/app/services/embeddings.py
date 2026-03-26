@@ -1,5 +1,3 @@
-"""Embeddings service — embed text via OpenAI, format invoice/transaction text."""
-
 from typing import Optional
 
 import httpx
@@ -11,12 +9,6 @@ from app.models.invoice import Invoice
 from app.models.transaction import Transaction
 
 OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings"
-
-
-# ---------------------------------------------------------------------------
-# Text formatting
-# ---------------------------------------------------------------------------
-
 
 def format_invoice_text(invoice: Invoice) -> str:
     """Format invoice fields into a short, structured string for embedding."""
@@ -32,12 +24,6 @@ def format_transaction_text(tx: Transaction) -> str:
         f"{tx.counterparty} {tx.description} "
         f"{tx.amount}EUR {tx.tx_date}"
     )
-
-
-# ---------------------------------------------------------------------------
-# Embedding API
-# ---------------------------------------------------------------------------
-
 
 async def embed_texts(texts: list[str]) -> list[list[float]]:
     """Call OpenAI embedding API and return vectors.
@@ -68,12 +54,6 @@ async def embed_text(text: str) -> list[float]:
     results = await embed_texts([text])
     return results[0]
 
-
-# ---------------------------------------------------------------------------
-# Embed + store
-# ---------------------------------------------------------------------------
-
-
 async def embed_invoice(db: AsyncSession, invoice: Invoice) -> None:
     """Embed an invoice and store the vector."""
     text = format_invoice_text(invoice)
@@ -88,12 +68,6 @@ async def embed_transaction(db: AsyncSession, tx: Transaction) -> None:
     embedding = await embed_text(text)
     tx.embedding = embedding
     await db.commit()
-
-
-# ---------------------------------------------------------------------------
-# Backfill
-# ---------------------------------------------------------------------------
-
 
 async def backfill_embeddings(db: AsyncSession, batch_size: int = 50) -> dict:
     """Embed all invoices and transactions that have embedding IS NULL.

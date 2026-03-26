@@ -1,5 +1,3 @@
-"""Google Drive service — upload files, manage folder structure."""
-
 import io
 from typing import Any, Optional
 

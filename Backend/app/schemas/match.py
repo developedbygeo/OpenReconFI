@@ -17,6 +17,7 @@ class MatchInvoiceSummary(BaseModel):
     invoice_date: date
     amount_excl: Decimal
     amount_incl: Decimal
+    currency: str
     category: Optional[str] = None
     drive_url: Optional[str] = None
     period: str
@@ -52,6 +53,12 @@ class MatchRead(BaseModel):
 class MatchList(BaseModel):
     items: list[MatchRead]
     total: int
+
+
+class MatchCreate(BaseModel):
+    """Manually create a match between an unmatched invoice and transaction."""
+    invoice_id: UUID
+    transaction_id: UUID
 
 
 class MatchConfirm(BaseModel):

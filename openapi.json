@@ -137,6 +137,28 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "invoices",
+          "invoices"
+        ],
+        "summary": "Delete All Invoices",
+        "operationId": "delete_all_invoices_invoices_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete All Invoices Invoices Delete"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/invoices/{invoice_id}": {
@@ -221,6 +243,41 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "invoices",
+          "invoices"
+        ],
+        "summary": "Delete Invoice",
+        "operationId": "delete_invoice_invoices__invoice_id__delete",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -495,7 +552,76 @@
         }
       }
     },
+    "/reconciliation/overview": {
+      "get": {
+        "tags": [
+          "reconciliation",
+          "reconciliation"
+        ],
+        "summary": "Period Overview",
+        "description": "Full reconciliation overview for a period \u2014 shows whether the month is complete.",
+        "operationId": "period_overview_reconciliation_overview_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Period to reconcile (YYYY-MM)",
+              "title": "Period"
+            },
+            "description": "Period to reconcile (YYYY-MM)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodReconciliation"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/reconciliation/transactions": {
+      "delete": {
+        "tags": [
+          "reconciliation",
+          "reconciliation"
+        ],
+        "summary": "Delete All Transactions",
+        "description": "Delete all transactions (and their matches), reset linked invoice statuses.",
+        "operationId": "delete_all_transactions_reconciliation_transactions_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete All Transactions Reconciliation Transactions Delete"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": [
           "reconciliation",
@@ -584,6 +710,61 @@
         }
       }
     },
+    "/reconciliation/transactions/{transaction_id}/dismiss": {
+      "post": {
+        "tags": [
+          "reconciliation",
+          "reconciliation"
+        ],
+        "summary": "Dismiss Transaction",
+        "description": "Dismiss a transaction \u2014 mark as no_invoice with an optional note (e.g. 'currency conversion fee').",
+        "operationId": "dismiss_transaction_reconciliation_transactions__transaction_id__dismiss_post",
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionDismiss"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/reconciliation/match": {
       "post": {
         "tags": [
@@ -591,7 +772,7 @@
           "reconciliation"
         ],
         "summary": "Trigger Matching",
-        "description": "Trigger LLM matching for a given period.",
+        "description": "Trigger hybrid matching: deterministic first, then LLM for leftovers.",
         "operationId": "trigger_matching_reconciliation_match_post",
         "requestBody": {
           "content": {
@@ -628,6 +809,47 @@
       }
     },
     "/reconciliation/matches": {
+      "post": {
+        "tags": [
+          "reconciliation",
+          "reconciliation"
+        ],
+        "summary": "Create Match",
+        "description": "Manually create a match between an unmatched invoice and transaction.",
+        "operationId": "create_match_reconciliation_matches_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": [
           "reconciliation",
@@ -1492,6 +1714,144 @@
         }
       }
     },
+    "/dashboard/tax-summary": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard"
+        ],
+        "summary": "Tax Summary",
+        "description": "Tax and non-invoiceable transactions for the given period (bank fees, tax payments, etc.).",
+        "operationId": "tax_summary_dashboard_tax_summary_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Period filter (YYYY-MM). Defaults to current month.",
+              "title": "Period"
+            },
+            "description": "Period filter (YYYY-MM). Defaults to current month."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/earnings": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard"
+        ],
+        "summary": "Earnings",
+        "description": "Incoming payments (credits) for the given period.",
+        "operationId": "earnings_dashboard_earnings_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Period filter (YYYY-MM). Defaults to current month.",
+              "title": "Period"
+            },
+            "description": "Period filter (YYYY-MM). Defaults to current month."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EarningsSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/withholdings": {
+      "get": {
+        "tags": [
+          "dashboard",
+          "dashboard"
+        ],
+        "summary": "Withholdings",
+        "description": "Owner withdrawals against earnings for the given period.",
+        "operationId": "withholdings_dashboard_withholdings_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Period filter (YYYY-MM). Defaults to current month.",
+              "title": "Period"
+            },
+            "description": "Period filter (YYYY-MM). Defaults to current month."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WithholdingSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/reports/generate": {
       "post": {
         "tags": [
@@ -1499,7 +1859,7 @@
           "reports"
         ],
         "summary": "Generate Report",
-        "description": "Generate a financial report in PDF or Excel format.",
+        "description": "Generate a financial report in PDF or Excel format and upload to Drive.",
         "operationId": "generate_report_reports_generate_post",
         "requestBody": {
           "content": {
@@ -1686,10 +2046,8 @@
         "type": "string",
         "enum": [
           "monthly",
-          "bimonthly",
-          "quarterly",
           "annual",
-          "irregular"
+          "one_off"
         ],
         "title": "BillingCycle"
       },
@@ -1891,9 +2249,88 @@
         "type": "string",
         "enum": [
           "llm",
-          "user"
+          "user",
+          "deterministic"
         ],
         "title": "ConfirmedBy"
+      },
+      "EarningTransaction": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "tx_date": {
+            "type": "string",
+            "title": "Tx Date"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "counterparty": {
+            "type": "string",
+            "title": "Counterparty"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tx_date",
+          "amount",
+          "description",
+          "counterparty"
+        ],
+        "title": "EarningTransaction"
+      },
+      "EarningsSummary": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "total_earnings": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Earnings"
+          },
+          "transaction_count": {
+            "type": "integer",
+            "title": "Transaction Count"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EarningTransaction"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "total_earnings",
+          "transaction_count",
+          "items"
+        ],
+        "title": "EarningsSummary"
       },
       "HTTPValidationError": {
         "properties": {
@@ -1970,6 +2407,11 @@
           "invoice_number": {
             "type": "string",
             "title": "Invoice Number"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "EUR"
           },
           "category": {
             "anyOf": [
@@ -2077,6 +2519,10 @@
             "type": "string",
             "title": "Invoice Number"
           },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
           "category": {
             "anyOf": [
               {
@@ -2148,6 +2594,7 @@
           "vat_rate",
           "invoice_date",
           "invoice_number",
+          "currency",
           "source",
           "status",
           "period",
@@ -2336,6 +2783,101 @@
         "title": "MatchConfirm",
         "description": "Confirm a match \u2014 sets confirmed_by to 'user' and confirmed_at to now."
       },
+      "MatchCreate": {
+        "properties": {
+          "invoice_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Invoice Id"
+          },
+          "transaction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Transaction Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "invoice_id",
+          "transaction_id"
+        ],
+        "title": "MatchCreate",
+        "description": "Manually create a match between an unmatched invoice and transaction."
+      },
+      "MatchInvoiceSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "vendor": {
+            "type": "string",
+            "title": "Vendor"
+          },
+          "invoice_number": {
+            "type": "string",
+            "title": "Invoice Number"
+          },
+          "invoice_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Invoice Date"
+          },
+          "amount_excl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount Excl"
+          },
+          "amount_incl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount Incl"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "drive_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drive Url"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "vendor",
+          "invoice_number",
+          "invoice_date",
+          "amount_excl",
+          "amount_incl",
+          "currency",
+          "period"
+        ],
+        "title": "MatchInvoiceSummary"
+      },
       "MatchList": {
         "properties": {
           "items": {
@@ -2397,6 +2939,26 @@
               }
             ],
             "title": "Confirmed At"
+          },
+          "invoice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatchInvoiceSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transaction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatchTransactionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -2441,17 +3003,92 @@
         "title": "MatchReassign",
         "description": "Reassign a match to a different invoice or transaction."
       },
-      "MatchTriggerRequest": {
+      "MatchTransactionSummary": {
         "properties": {
-          "period": {
+          "id": {
             "type": "string",
-            "title": "Period"
+            "format": "uuid",
+            "title": "Id"
+          },
+          "tx_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Tx Date"
+          },
+          "value_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Date"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount"
+          },
+          "original_amount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Amount"
+          },
+          "original_currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Currency"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "counterparty": {
+            "type": "string",
+            "title": "Counterparty"
           }
         },
         "type": "object",
         "required": [
-          "period"
+          "id",
+          "tx_date",
+          "amount",
+          "description",
+          "counterparty"
         ],
+        "title": "MatchTransactionSummary"
+      },
+      "MatchTriggerRequest": {
+        "properties": {
+          "period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period"
+          }
+        },
+        "type": "object",
         "title": "MatchTriggerRequest"
       },
       "MatchTriggerResponse": {
@@ -2461,14 +3098,35 @@
             "title": "Matches Suggested"
           },
           "period": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Period"
+          },
+          "deterministic_matches": {
+            "type": "integer",
+            "title": "Deterministic Matches",
+            "default": 0
+          },
+          "llm_matches": {
+            "type": "integer",
+            "title": "Llm Matches",
+            "default": 0
+          },
+          "fees_dismissed": {
+            "type": "integer",
+            "title": "Fees Dismissed",
+            "default": 0
           }
         },
         "type": "object",
         "required": [
-          "matches_suggested",
-          "period"
+          "matches_suggested"
         ],
         "title": "MatchTriggerResponse"
       },
@@ -2583,6 +3241,121 @@
           "invoice_count"
         ],
         "title": "MonthlySpend"
+      },
+      "PeriodReconciliation": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "is_complete": {
+            "type": "boolean",
+            "title": "Is Complete"
+          },
+          "total_invoices": {
+            "type": "integer",
+            "title": "Total Invoices"
+          },
+          "matched_invoices": {
+            "type": "integer",
+            "title": "Matched Invoices"
+          },
+          "unmatched_invoices": {
+            "type": "integer",
+            "title": "Unmatched Invoices"
+          },
+          "total_invoiced_incl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Invoiced Incl"
+          },
+          "total_transactions": {
+            "type": "integer",
+            "title": "Total Transactions"
+          },
+          "matched_transactions": {
+            "type": "integer",
+            "title": "Matched Transactions"
+          },
+          "unmatched_transactions": {
+            "type": "integer",
+            "title": "Unmatched Transactions"
+          },
+          "total_bank_debits": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Bank Debits"
+          },
+          "no_invoice_count": {
+            "type": "integer",
+            "title": "No Invoice Count"
+          },
+          "no_invoice_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "No Invoice Total"
+          },
+          "withholding_count": {
+            "type": "integer",
+            "title": "Withholding Count"
+          },
+          "withholding_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Withholding Total"
+          },
+          "earnings_count": {
+            "type": "integer",
+            "title": "Earnings Count"
+          },
+          "earnings_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Earnings Total"
+          },
+          "gap": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Gap"
+          },
+          "unmatched_invoice_list": {
+            "items": {
+              "$ref": "#/components/schemas/UnmatchedInvoiceSummary"
+            },
+            "type": "array",
+            "title": "Unmatched Invoice List"
+          },
+          "unmatched_transaction_list": {
+            "items": {
+              "$ref": "#/components/schemas/UnmatchedTransactionSummary"
+            },
+            "type": "array",
+            "title": "Unmatched Transaction List"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "is_complete",
+          "total_invoices",
+          "matched_invoices",
+          "unmatched_invoices",
+          "total_invoiced_incl",
+          "total_transactions",
+          "matched_transactions",
+          "unmatched_transactions",
+          "total_bank_debits",
+          "no_invoice_count",
+          "no_invoice_total",
+          "withholding_count",
+          "withholding_total",
+          "earnings_count",
+          "earnings_total",
+          "gap",
+          "unmatched_invoice_list",
+          "unmatched_transaction_list"
+        ],
+        "title": "PeriodReconciliation"
       },
       "ReportFormat": {
         "type": "string",
@@ -2752,6 +3525,116 @@
         ],
         "title": "StatementUploadResponse"
       },
+      "TaxCategoryBreakdown": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "total_amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount"
+          },
+          "transaction_count": {
+            "type": "integer",
+            "title": "Transaction Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "total_amount",
+          "transaction_count"
+        ],
+        "title": "TaxCategoryBreakdown"
+      },
+      "TaxSummary": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "total_amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount"
+          },
+          "transaction_count": {
+            "type": "integer",
+            "title": "Transaction Count"
+          },
+          "by_category": {
+            "items": {
+              "$ref": "#/components/schemas/TaxCategoryBreakdown"
+            },
+            "type": "array",
+            "title": "By Category"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TaxTransaction"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "total_amount",
+          "transaction_count",
+          "by_category",
+          "items"
+        ],
+        "title": "TaxSummary"
+      },
+      "TaxTransaction": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "tx_date": {
+            "type": "string",
+            "title": "Tx Date"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "counterparty": {
+            "type": "string",
+            "title": "Counterparty"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tx_date",
+          "amount",
+          "description",
+          "counterparty"
+        ],
+        "title": "TaxTransaction"
+      },
       "TimeframeType": {
         "type": "string",
         "enum": [
@@ -2762,6 +3645,23 @@
           "custom"
         ],
         "title": "TimeframeType"
+      },
+      "TransactionDismiss": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "TransactionDismiss"
       },
       "TransactionList": {
         "properties": {
@@ -2796,10 +3696,45 @@
             "format": "date",
             "title": "Tx Date"
           },
+          "value_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Date"
+          },
           "amount": {
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Amount"
+          },
+          "original_amount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Amount"
+          },
+          "original_currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Currency"
           },
           "description": {
             "type": "string",
@@ -2819,6 +3754,28 @@
               }
             ],
             "title": "Counterparty Iban"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
           },
           "period": {
             "type": "string",
@@ -2844,7 +3801,9 @@
         "type": "string",
         "enum": [
           "unmatched",
-          "matched"
+          "matched",
+          "no_invoice",
+          "withholding"
         ],
         "title": "TransactionStatus"
       },
@@ -2854,6 +3813,98 @@
           "user"
         ],
         "title": "TriggeredBy"
+      },
+      "UnmatchedInvoiceSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "vendor": {
+            "type": "string",
+            "title": "Vendor"
+          },
+          "invoice_number": {
+            "type": "string",
+            "title": "Invoice Number"
+          },
+          "amount_incl": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount Incl"
+          },
+          "invoice_date": {
+            "type": "string",
+            "title": "Invoice Date"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "vendor",
+          "invoice_number",
+          "amount_incl",
+          "invoice_date"
+        ],
+        "title": "UnmatchedInvoiceSummary"
+      },
+      "UnmatchedTransactionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "counterparty": {
+            "type": "string",
+            "title": "Counterparty"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount"
+          },
+          "tx_date": {
+            "type": "string",
+            "title": "Tx Date"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "counterparty",
+          "description",
+          "amount",
+          "tx_date"
+        ],
+        "title": "UnmatchedTransactionSummary"
       },
       "VATBreakdown": {
         "properties": {
@@ -3198,6 +4249,73 @@
         },
         "type": "object",
         "title": "VendorUpdate"
+      },
+      "WithholdingSummary": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "total_amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount"
+          },
+          "transaction_count": {
+            "type": "integer",
+            "title": "Transaction Count"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WithholdingTransaction"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "total_amount",
+          "transaction_count",
+          "items"
+        ],
+        "title": "WithholdingSummary"
+      },
+      "WithholdingTransaction": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "tx_date": {
+            "type": "string",
+            "title": "Tx Date"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "counterparty": {
+            "type": "string",
+            "title": "Counterparty"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tx_date",
+          "amount",
+          "description",
+          "counterparty"
+        ],
+        "title": "WithholdingTransaction"
       }
     }
   }

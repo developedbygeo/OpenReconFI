@@ -152,16 +152,15 @@ async def test_parse_bank_statement_validation_error():
 
 
 @pytest.mark.asyncio
-async def test_match_invoices_transactions():
-    """Test matching with mocked Claude API."""
-    from app.services.llm import match_invoices_transactions
+async def test_match_single_invoice():
+    """Test single-invoice matching with mocked Claude API."""
+    from app.services.llm import match_single_invoice
 
     inv_id = str(uuid.uuid4())
     tx_id = str(uuid.uuid4())
 
     mock_response = [
         {
-            "invoice_id": inv_id,
             "transaction_id": tx_id,
             "confidence": 0.97,
             "rationale": "Amount matches exactly. Vendor name matches.",
@@ -174,24 +173,44 @@ async def test_match_invoices_transactions():
     mock_client = AsyncMock()
     mock_client.messages.create = AsyncMock(return_value=mock_message)
 
-    invoices = [{"id": inv_id, "vendor": "Vercel", "amount_incl": "49.00"}]
-    transactions = [{"id": tx_id, "amount": "-49.00", "description": "VERCEL INC"}]
-    aliases = [{"name": "Vercel", "aliases": ["VERCEL INC"]}]
+    invoice = {"id": inv_id, "vendor": "Vercel", "amount_incl": "49.00", "currency": "EUR", "invoice_date": "2026-03-01"}
+    transactions = [{"id": tx_id, "tx_date": "2026-03-04", "amount": "-49.00", "counterparty": "Vercel Inc", "description": "VERCEL INC SUBSCRIPTION"}]
 
     with patch("app.services.llm._get_client", return_value=mock_client):
-        result = await match_invoices_transactions(invoices, transactions, aliases)
+        result = await match_single_invoice(invoice, transactions)
 
-    assert len(result) == 1
-    assert result[0]["invoice_id"] == uuid.UUID(inv_id)
-    assert result[0]["transaction_id"] == uuid.UUID(tx_id)
-    assert result[0]["confidence"] == Decimal("0.97")
-    assert "matches" in result[0]["rationale"].lower()
+    assert result is not None
+    assert result["invoice_id"] == uuid.UUID(inv_id)
+    assert result["transaction_id"] == uuid.UUID(tx_id)
+    assert result["confidence"] == Decimal("0.97")
+    assert "matches" in result["rationale"].lower()
 
 
 @pytest.mark.asyncio
-async def test_match_invoices_transactions_empty():
-    """Empty inputs returns empty list without calling LLM."""
-    from app.services.llm import match_invoices_transactions
+async def test_match_single_invoice_no_match():
+    """LLM returns empty array → None."""
+    from app.services.llm import match_single_invoice
 
-    result = await match_invoices_transactions([], [], [])
-    assert result == []
+    mock_message = MagicMock()
+    mock_message.content = [MagicMock(text="[]")]
+
+    mock_client = AsyncMock()
+    mock_client.messages.create = AsyncMock(return_value=mock_message)
+
+    invoice = {"id": str(uuid.uuid4()), "vendor": "Vercel", "amount_incl": "49.00", "currency": "EUR", "invoice_date": "2026-03-01"}
+    transactions = [{"id": str(uuid.uuid4()), "tx_date": "2026-03-04", "amount": "-10.00", "counterparty": "Hetzner", "description": "HETZNER CLOUD"}]
+
+    with patch("app.services.llm._get_client", return_value=mock_client):
+        result = await match_single_invoice(invoice, transactions)
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_match_single_invoice_empty_transactions():
+    """Empty transaction list returns None without calling LLM."""
+    from app.services.llm import match_single_invoice
+
+    invoice = {"id": str(uuid.uuid4()), "vendor": "Vercel", "amount_incl": "49.00"}
+    result = await match_single_invoice(invoice, [])
+    assert result is None

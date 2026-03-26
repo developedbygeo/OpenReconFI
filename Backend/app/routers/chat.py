@@ -1,5 +1,3 @@
-"""Chat router — expense chat with RAG (Phase 5)."""
-
 from fastapi import APIRouter, Depends
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +16,6 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 @router.post(
     "/message",
-    tags=["chat"],
 )
 async def send_message(
     body: ChatMessageSend,
@@ -39,12 +36,10 @@ async def send_message(
 @router.get(
     "/history",
     response_model=ChatHistory,
-    tags=["chat"],
 )
 async def get_history(
     db: AsyncSession = Depends(get_db),
 ) -> ChatHistory:
-    """Get full chat history."""
     messages = await get_chat_history(db)
     return ChatHistory(
         items=[ChatMessageRead.model_validate(m) for m in messages],
@@ -55,11 +50,9 @@ async def get_history(
 @router.delete(
     "/history",
     response_model=ChatClearResponse,
-    tags=["chat"],
 )
 async def clear_history(
     db: AsyncSession = Depends(get_db),
 ) -> ChatClearResponse:
-    """Clear all chat history."""
     deleted = await clear_chat_history(db)
     return ChatClearResponse(deleted=deleted)

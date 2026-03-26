@@ -1,5 +1,3 @@
-"""Gmail API service — OAuth setup, on-demand fetch of emails with PDF attachments."""
-
 import base64
 from dataclasses import dataclass
 from typing import Any

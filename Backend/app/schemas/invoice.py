@@ -16,6 +16,7 @@ class InvoiceCreate(BaseModel):
     vat_rate: Decimal
     invoice_date: date
     invoice_number: str
+    currency: str = "EUR"
     category: Optional[str] = None
     source: InvoiceSource = InvoiceSource.manual
     period: str
@@ -39,6 +40,7 @@ class InvoiceRead(BaseModel):
     vat_rate: Decimal
     invoice_date: date
     invoice_number: str
+    currency: str
     category: Optional[str] = None
     drive_url: Optional[str] = None
     drive_file_id: Optional[str] = None

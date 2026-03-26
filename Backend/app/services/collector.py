@@ -1,5 +1,3 @@
-"""Collector service — orchestrates Gmail fetch -> LLM extract -> rename -> store -> Drive upload."""
-
 import calendar
 from decimal import Decimal
 from typing import Any

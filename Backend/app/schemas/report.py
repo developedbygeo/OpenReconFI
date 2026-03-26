@@ -1,5 +1,3 @@
-"""Report schemas — request/response for report generation."""
-
 from typing import Optional
 
 from pydantic import BaseModel

@@ -26,6 +26,7 @@ class Invoice(Base):
     vat_rate: Mapped[float] = mapped_column(Numeric(4, 2), nullable=False)
     invoice_date: Mapped[date] = mapped_column(Date, nullable=False)
     invoice_number: Mapped[str] = mapped_column(Text, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default="EUR")
     category: Mapped[str | None] = mapped_column(Text, nullable=True)
     drive_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     drive_file_id: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -18,19 +18,19 @@ class TransactionStatus(str, enum.Enum):
     unmatched = "unmatched"
     matched = "matched"
     no_invoice = "no_invoice"
+    withholding = "withholding"
 
 
 class ConfirmedBy(str, enum.Enum):
     llm = "llm"
     user = "user"
+    deterministic = "deterministic"
 
 
 class BillingCycle(str, enum.Enum):
     monthly = "monthly"
-    bimonthly = "bimonthly"
-    quarterly = "quarterly"
     annual = "annual"
-    irregular = "irregular"
+    one_off = "one_off"
 
 
 class JobType(str, enum.Enum):

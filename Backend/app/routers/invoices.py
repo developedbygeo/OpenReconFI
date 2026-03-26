@@ -12,7 +12,7 @@ from app.schemas.invoice import InvoiceCreate, InvoiceList, InvoiceRead, Invoice
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
 
-@router.get("", response_model=InvoiceList, tags=["invoices"])
+@router.get("", response_model=InvoiceList)
 async def list_invoices(
     period: Optional[str] = Query(None, description="Filter by period e.g. 2026-03"),
     status: Optional[str] = Query(None, description="Filter by status"),
@@ -44,7 +44,7 @@ async def list_invoices(
     )
 
 
-@router.get("/{invoice_id}", response_model=InvoiceRead, tags=["invoices"])
+@router.get("/{invoice_id}", response_model=InvoiceRead)
 async def get_invoice(
     invoice_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -56,7 +56,7 @@ async def get_invoice(
     return InvoiceRead.model_validate(invoice)
 
 
-@router.post("", response_model=InvoiceRead, status_code=201, tags=["invoices"])
+@router.post("", response_model=InvoiceRead, status_code=201)
 async def create_invoice(
     body: InvoiceCreate,
     db: AsyncSession = Depends(get_db),
@@ -68,7 +68,7 @@ async def create_invoice(
     return InvoiceRead.model_validate(invoice)
 
 
-@router.patch("/{invoice_id}", response_model=InvoiceRead, tags=["invoices"])
+@router.patch("/{invoice_id}", response_model=InvoiceRead)
 async def update_invoice(
     invoice_id: UUID,
     body: InvoiceUpdate,
@@ -88,7 +88,7 @@ async def update_invoice(
     return InvoiceRead.model_validate(invoice)
 
 
-@router.delete("", tags=["invoices"])
+@router.delete("")
 async def delete_all_invoices(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -101,7 +101,7 @@ async def delete_all_invoices(
     return {"deleted": count}
 
 
-@router.delete("/{invoice_id}", status_code=204, tags=["invoices"])
+@router.delete("/{invoice_id}", status_code=204)
 async def delete_invoice(
     invoice_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -114,7 +114,7 @@ async def delete_invoice(
     await db.commit()
 
 
-@router.post("/upload", response_model=InvoiceRead, status_code=201, tags=["invoices"])
+@router.post("/upload", response_model=InvoiceRead, status_code=201)
 async def upload_invoice(
     file: UploadFile,
     db: AsyncSession = Depends(get_db),
@@ -125,6 +125,7 @@ async def upload_invoice(
     pdf_bytes = await file.read()
     extracted = await extract_invoice_from_pdf(pdf_bytes)
 
+    raw = extracted.get("raw") or {}
     invoice = Invoice(
         vendor=extracted["vendor"],
         amount_excl=extracted["amount_excl"],
@@ -133,10 +134,11 @@ async def upload_invoice(
         vat_rate=extracted["vat_rate"],
         invoice_date=extracted["invoice_date"],
         invoice_number=extracted["invoice_number"],
+        currency=raw.get("currency", "EUR"),
         source="manual",
         status="pending",
         period=extracted["invoice_date"].strftime("%Y-%m"),
-        raw_extraction=extracted.get("raw"),
+        raw_extraction=raw,
     )
     db.add(invoice)
     await db.commit()
