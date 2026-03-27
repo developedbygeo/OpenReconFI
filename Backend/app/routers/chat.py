@@ -8,8 +8,14 @@ from app.schemas.chat import (
     ChatHistory,
     ChatMessageRead,
     ChatMessageSend,
+    ChatSuggestions,
 )
-from app.services.chat import chat_stream, clear_chat_history, get_chat_history
+from app.services.chat import (
+    chat_stream,
+    clear_chat_history,
+    generate_suggestions,
+    get_chat_history,
+)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -45,6 +51,19 @@ async def get_history(
         items=[ChatMessageRead.model_validate(m) for m in messages],
         total=len(messages),
     )
+
+
+@router.get(
+    "/suggestions",
+    response_model=ChatSuggestions,
+    tags=["chat"],
+)
+async def get_suggestions(
+    db: AsyncSession = Depends(get_db),
+) -> ChatSuggestions:
+    """Get contextual chat suggestions based on financial data and conversation history."""
+    questions = await generate_suggestions(db)
+    return ChatSuggestions(questions=questions)
 
 
 @router.delete(

@@ -5,7 +5,7 @@ from app.config import settings
 from app.routers import categories, chat, dashboard, invoices, jobs, reconciliation, reports, vendors
 
 app = FastAPI(
-    title="Matchbook API",
+    title="OpenReconFi API",
     version="0.1.0",
     description="Self-hosted agency finance ops — invoice collection, reconciliation, reporting.",
 )

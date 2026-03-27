@@ -29,3 +29,7 @@ class ChatHistory(BaseModel):
 
 class ChatClearResponse(BaseModel):
     deleted: int
+
+
+class ChatSuggestions(BaseModel):
+    questions: list[str]

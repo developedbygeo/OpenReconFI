@@ -5,8 +5,40 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
+import re as _re
+
 import anthropic
 import pdfplumber
+
+
+def _to_decimal(value: Any) -> Decimal:
+    """Sanitize LLM-returned numbers into Decimal.
+
+    Handles: "€1,234.56", "1.234,56" (EU), "$20", plain numbers, etc.
+    """
+    if value is None:
+        return Decimal("0")
+    s = str(value).strip()
+    # Strip currency symbols and whitespace
+    s = _re.sub(r"[€$£¥\s]", "", s)
+    if not s or s in ("-", "+", "."):
+        return Decimal("0")
+    # Detect European format: "1.234,56" (dots as thousands, comma as decimal)
+    if "," in s and "." in s:
+        if s.rindex(",") > s.rindex("."):
+            # European: 1.234,56 → 1234.56
+            s = s.replace(".", "").replace(",", ".")
+        else:
+            # US: 1,234.56 → 1234.56
+            s = s.replace(",", "")
+    elif "," in s and "." not in s:
+        # Could be "1234,56" (EU decimal) or "1,234" (US thousands)
+        parts = s.split(",")
+        if len(parts) == 2 and len(parts[1]) <= 2:
+            s = s.replace(",", ".")
+        else:
+            s = s.replace(",", "")
+    return Decimal(s)
 
 from app.config import settings
 
@@ -82,10 +114,11 @@ async def extract_invoice_from_pdf(pdf_bytes: bytes) -> dict[str, Any]:
         "vendor": data["vendor"],
         "invoice_number": data["invoice_number"],
         "invoice_date": date.fromisoformat(data["invoice_date"]),
-        "amount_excl": Decimal(str(data["amount_excl"])),
-        "amount_incl": Decimal(str(data["amount_incl"])),
-        "vat_amount": Decimal(str(data["vat_amount"])),
-        "vat_rate": Decimal(str(data["vat_rate"])),
+        "amount_excl": _to_decimal(data["amount_excl"]),
+        "amount_incl": _to_decimal(data["amount_incl"]),
+        "vat_amount": _to_decimal(data["vat_amount"]),
+        "vat_rate": _to_decimal(data["vat_rate"]),
+        "currency": data.get("currency", "EUR"),
         "category": data.get("category"),
         "raw": data,
     }
@@ -128,7 +161,7 @@ def _validate_transaction(tx: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(f"Invalid tx_date '{tx['tx_date']}': {e}")
 
     try:
-        amount = Decimal(str(tx["amount"]))
+        amount = _to_decimal(tx["amount"])
     except (InvalidOperation, TypeError) as e:
         raise ValueError(f"Invalid amount '{tx['amount']}': {e}")
 
@@ -144,8 +177,8 @@ def _validate_transaction(tx: dict[str, Any]) -> dict[str, Any]:
     original_amount = None
     if tx.get("original_amount") is not None:
         try:
-            original_amount = Decimal(str(tx["original_amount"]))
-        except (InvalidOperation, TypeError):
+            original_amount = _to_decimal(tx["original_amount"])
+        except (InvalidOperation, TypeError, ValueError):
             pass
 
     original_currency = tx.get("original_currency")

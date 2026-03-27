@@ -1,3 +1,4 @@
+import json
 from collections.abc import AsyncGenerator
 from datetime import date
 from decimal import Decimal
@@ -14,9 +15,12 @@ from app.models.invoice import Invoice
 from app.models.transaction import Transaction
 from app.services.embeddings import embed_text
 
-SYSTEM_PROMPT = """You are OpenReconFi's financial assistant. You help agency owners understand their expenses, invoices, and transactions.
+SYSTEM_PROMPT = """You are OpenReconFi's financial assistant. You help agency owners understand their full financial picture — expenses, revenue, bank transactions, invoices, taxes, and reconciliation status.
 
-You have access to the agency's financial data, including invoices, bank transactions, vendor information, and spending summaries.
+You have access to the agency's financial data, including:
+- Invoices (expenses): amounts, vendors, categories, periods, and statuses
+- Bank transactions: inflows (revenue), outflows (expenses), counterparties, and matching status
+- Aggregated summaries: spend by category/vendor, monthly trends, inflow/outflow breakdowns, and reconciliation status
 
 Guidelines:
 - Be concise and direct. Use exact figures from the data provided.
@@ -119,7 +123,7 @@ async def _build_aggregates(db: AsyncSession) -> str:
         for row in vendor_rows:
             parts.append(f"| {row[0]} | €{row[1]:,.2f} | {row[2]} |")
 
-    # MoM trend
+    # MoM invoice trend
     mom_result = await db.execute(
         select(
             Invoice.period,
@@ -132,11 +136,93 @@ async def _build_aggregates(db: AsyncSession) -> str:
     )
     mom_rows = mom_result.all()
     if mom_rows:
-        parts.append(f"\n## Monthly Trend ({mom_periods[0]} – {mom_periods[-1]})")
+        parts.append(f"\n## Invoice Monthly Trend ({mom_periods[0]} – {mom_periods[-1]})")
         parts.append("| Period | Total ex VAT | Invoices |")
         parts.append("|---|---|---|")
         for row in mom_rows:
             parts.append(f"| {row[0]} | €{row[1]:,.2f} | {row[2]} |")
+
+    # ── Bank Transaction Aggregates ──
+
+    # Inflows vs outflows (all time)
+    inflow_result = await db.execute(
+        select(
+            func.sum(Transaction.amount).filter(Transaction.amount > 0),
+            func.count(Transaction.id).filter(Transaction.amount > 0),
+            func.sum(Transaction.amount).filter(Transaction.amount < 0),
+            func.count(Transaction.id).filter(Transaction.amount < 0),
+        )
+    )
+    flow_row = inflow_result.one()
+    inflows, inflow_count, outflows, outflow_count = flow_row
+    if inflows or outflows:
+        parts.append("\n## Bank Account Summary (all time)")
+        parts.append("| Direction | Total | Transactions |")
+        parts.append("|---|---|---|")
+        if inflows:
+            parts.append(f"| Inflows (revenue) | €{inflows:,.2f} | {inflow_count} |")
+        if outflows:
+            parts.append(f"| Outflows (expenses) | €{outflows:,.2f} | {outflow_count} |")
+        if inflows and outflows:
+            parts.append(f"| **Net** | **€{(inflows + outflows):,.2f}** | {inflow_count + outflow_count} |")
+
+    # Monthly bank trend
+    tx_mom_result = await db.execute(
+        select(
+            Transaction.period,
+            func.sum(Transaction.amount).filter(Transaction.amount > 0).label("inflows"),
+            func.sum(Transaction.amount).filter(Transaction.amount < 0).label("outflows"),
+            func.count(Transaction.id),
+        )
+        .where(Transaction.period.in_(mom_periods))
+        .group_by(Transaction.period)
+        .order_by(Transaction.period)
+    )
+    tx_mom_rows = tx_mom_result.all()
+    if tx_mom_rows:
+        parts.append(f"\n## Bank Monthly Trend ({mom_periods[0]} – {mom_periods[-1]})")
+        parts.append("| Period | Inflows | Outflows | Net | Txns |")
+        parts.append("|---|---|---|---|---|")
+        for row in tx_mom_rows:
+            inf = row[1] or Decimal(0)
+            out = row[2] or Decimal(0)
+            parts.append(f"| {row[0]} | €{inf:,.2f} | €{out:,.2f} | €{(inf + out):,.2f} | {row[3]} |")
+
+    # Top counterparties by volume
+    cp_result = await db.execute(
+        select(
+            Transaction.counterparty,
+            func.sum(Transaction.amount),
+            func.count(Transaction.id),
+        )
+        .group_by(Transaction.counterparty)
+        .order_by(func.abs(func.sum(Transaction.amount)).desc())
+        .limit(10)
+    )
+    cp_rows = cp_result.all()
+    if cp_rows:
+        parts.append("\n## Top Counterparties by Volume (top 10)")
+        parts.append("| Counterparty | Net Amount | Transactions |")
+        parts.append("|---|---|---|")
+        for row in cp_rows:
+            parts.append(f"| {row[0]} | €{row[1]:,.2f} | {row[2]} |")
+
+    # Transaction status breakdown
+    status_result = await db.execute(
+        select(
+            Transaction.status,
+            func.count(Transaction.id),
+            func.sum(func.abs(Transaction.amount)),
+        )
+        .group_by(Transaction.status)
+    )
+    status_rows = status_result.all()
+    if status_rows:
+        parts.append("\n## Transaction Status Breakdown")
+        parts.append("| Status | Count | Total Amount |")
+        parts.append("|---|---|---|")
+        for row in status_rows:
+            parts.append(f"| {row[0].value} | {row[1]} | €{row[2]:,.2f} |")
 
     return "\n".join(parts) if parts else "No financial data available yet."
 
@@ -275,6 +361,67 @@ async def get_chat_history(
         .limit(limit)
     )
     return list(result.scalars().all())
+
+
+FALLBACK_STARTERS = [
+    "What are my top vendors by spend?",
+    "Show me this month's expenses vs last month.",
+    "Are there any unmatched transactions?",
+]
+
+FALLBACK_FOLLOWUPS = [
+    "Can you break that down by category?",
+    "What about the previous month?",
+    "Which invoices are still unpaid?",
+]
+
+
+async def generate_suggestions(db: AsyncSession) -> list[str]:
+    """Generate 3 contextual chat suggestions using aggregates + Haiku."""
+    aggregates = await _build_aggregates(db)
+
+    # Load last 4 messages for conversation context
+    history_result = await db.execute(
+        select(ChatMessage)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(4)
+    )
+    recent = list(reversed(history_result.scalars().all()))
+
+    has_conversation = len(recent) > 0
+
+    if has_conversation:
+        conv_lines = [f"{m.role.value}: {m.content[:200]}" for m in recent]
+        conv_context = "\n".join(conv_lines)
+        prompt = (
+            f"Financial data:\n{aggregates}\n\n"
+            f"Recent conversation:\n{conv_context}\n\n"
+            "Suggest 3 short follow-up questions (max 10 words each) the user might ask next "
+            "about their finances. Return ONLY a JSON array of 3 strings, no other text."
+        )
+        fallback = FALLBACK_FOLLOWUPS
+    else:
+        prompt = (
+            f"Financial data:\n{aggregates}\n\n"
+            "Suggest 3 short starter questions (max 10 words each) a user might ask "
+            "about these finances. Return ONLY a JSON array of 3 strings, no other text."
+        )
+        fallback = FALLBACK_STARTERS
+
+    try:
+        client = _get_client()
+        response = await client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = response.content[0].text.strip()
+        questions = json.loads(text)
+        if isinstance(questions, list) and len(questions) >= 3:
+            return [str(q) for q in questions[:3]]
+        return fallback
+    except Exception:
+        return fallback
 
 
 async def clear_chat_history(db: AsyncSession) -> int:
