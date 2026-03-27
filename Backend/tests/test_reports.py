@@ -95,7 +95,7 @@ async def test_report_preview_single_month(client: AsyncClient):
     assert data["timeframe_label"] == "2026-03"
     assert data["periods"] == ["2026-03"]
     assert data["format"] == "pdf"
-    assert data["filename"] == "matchbook-report-2026-03.pdf"
+    assert data["filename"] == "openreconfi-report-2026-03.pdf"
 
 
 @pytest.mark.asyncio
@@ -187,7 +187,7 @@ async def test_generate_pdf_report(client: AsyncClient):
     )
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "application/pdf"
-    assert "matchbook-report" in resp.headers["content-disposition"]
+    assert "openreconfi-report" in resp.headers["content-disposition"]
     # PDF starts with %PDF
     assert resp.content[:5] == b"%PDF-"
 

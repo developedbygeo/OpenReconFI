@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     # Postgres
     postgres_host: str = "localhost"
     postgres_port: int = 5432
-    postgres_db: str = "matchbook"
-    postgres_user: str = "matchbook"
+    postgres_db: str = "openreconfi"
+    postgres_user: str = "openreconfi"
     postgres_password: str = ""
 
     # Embeddings (OpenAI)

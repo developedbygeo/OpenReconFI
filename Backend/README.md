@@ -1,4 +1,4 @@
-# Matchbook — Backend
+# OpenReconFi — Backend
 
 Self-hosted agency finance ops: invoice collection, bank reconciliation, vendor management, reports, and expense chat (RAG).
 
@@ -39,7 +39,7 @@ This opens a browser for consent and prints your `GOOGLE_REFRESH_TOKEN`. Paste i
 
 ### 3. Get Drive folder ID
 
-Create a folder in Google Drive (e.g. `Matchbook`). Open it and grab the ID from the URL:
+Create a folder in Google Drive (e.g. `OpenReconFi`). Open it and grab the ID from the URL:
 
 ```
 https://drive.google.com/drive/folders/1aBcDeFgHiJkLmNoPqRsTuVwXyZ
@@ -83,7 +83,7 @@ Backend is live at **http://localhost:8000/docs** (Swagger UI).
 docker compose up postgres -d
 
 # Create pgvector extension (first time only)
-docker exec matchbook-postgres-1 psql -U matchbook -d matchbook -c "CREATE EXTENSION IF NOT EXISTS vector;"
+docker exec openreconfi-postgres-1 psql -U openreconfi -d openreconfi -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
 # Run migrations
 uv run alembic upgrade head
@@ -96,8 +96,8 @@ uv run uvicorn app.main:app --reload --port 8000
 
 ```bash
 # Create test database (first time only)
-docker exec matchbook-postgres-1 psql -U matchbook -c "CREATE DATABASE matchbook_test;"
-docker exec matchbook-postgres-1 psql -U postgres -d matchbook_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+docker exec openreconfi-postgres-1 psql -U openreconfi -c "CREATE DATABASE openreconfi_test;"
+docker exec openreconfi-postgres-1 psql -U postgres -d openreconfi_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
 # Run tests
 uv run pytest tests/ -v

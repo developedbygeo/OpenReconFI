@@ -204,7 +204,7 @@ def _render_html(label: str, data: dict) -> str:
 </head><body>
 
 <div class="cover">
-  <h1>Matchbook — Financial Report</h1>
+  <h1>OpenReconFi — Financial Report</h1>
   <p><strong>{label}</strong></p>
   <p>Generated {today}</p>
 </div>

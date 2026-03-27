@@ -14,7 +14,7 @@ from app.models.invoice import Invoice
 from app.models.transaction import Transaction
 from app.services.embeddings import embed_text
 
-SYSTEM_PROMPT = """You are Matchbook's financial assistant. You help agency owners understand their expenses, invoices, and transactions.
+SYSTEM_PROMPT = """You are OpenReconFi's financial assistant. You help agency owners understand their expenses, invoices, and transactions.
 
 You have access to the agency's financial data, including invoices, bank transactions, vendor information, and spending summaries.
 

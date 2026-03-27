@@ -21,7 +21,7 @@ async def engine():
     eng = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
     async with eng.begin() as conn:
         # pgvector extension must be created by superuser beforehand:
-        # docker exec <container> psql -U postgres -d matchbook_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+        # docker exec <container> psql -U postgres -d openreconfi_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
         await conn.run_sync(Base.metadata.create_all)
     yield eng
     async with eng.begin() as conn:

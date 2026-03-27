@@ -92,5 +92,5 @@ def test_format_retrieved_transactions():
 def test_system_prompt_exists():
     from app.services.chat import SYSTEM_PROMPT
 
-    assert "Matchbook" in SYSTEM_PROMPT
+    assert "OpenReconFi" in SYSTEM_PROMPT
     assert len(SYSTEM_PROMPT) > 100

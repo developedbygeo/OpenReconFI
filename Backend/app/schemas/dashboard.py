@@ -1,5 +1,3 @@
-"""Dashboard schemas — missing invoice alerts + spending summaries."""
-
 from decimal import Decimal
 from typing import Optional
 from uuid import UUID
@@ -82,3 +80,69 @@ class MonthlySpend(BaseModel):
 
 class MoMComparison(BaseModel):
     items: list[MonthlySpend]
+
+
+# --- Tax / no-invoice transaction summaries ---
+
+
+# --- Earnings ---
+
+
+class EarningTransaction(BaseModel):
+    id: UUID
+    tx_date: str
+    amount: Decimal
+    description: str
+    counterparty: str
+    category: Optional[str] = None
+
+
+class EarningsSummary(BaseModel):
+    period: str
+    total_earnings: Decimal
+    transaction_count: int
+    items: list[EarningTransaction]
+
+
+# --- Withholdings (deductions against earnings) ---
+
+
+class WithholdingTransaction(BaseModel):
+    id: UUID
+    tx_date: str
+    amount: Decimal
+    description: str
+    counterparty: str
+
+
+class WithholdingSummary(BaseModel):
+    period: str
+    total_amount: Decimal
+    transaction_count: int
+    items: list[WithholdingTransaction]
+
+
+# --- Tax / no-invoice transactions ---
+
+
+class TaxTransaction(BaseModel):
+    id: UUID
+    tx_date: str
+    amount: Decimal
+    description: str
+    counterparty: str
+    category: Optional[str] = None
+
+
+class TaxCategoryBreakdown(BaseModel):
+    category: str
+    total_amount: Decimal
+    transaction_count: int
+
+
+class TaxSummary(BaseModel):
+    period: str
+    total_amount: Decimal
+    transaction_count: int
+    by_category: list[TaxCategoryBreakdown]
+    items: list[TaxTransaction]

@@ -29,6 +29,7 @@ class UnmatchedInvoiceSummary(BaseModel):
     invoice_number: str
     amount_incl: Decimal
     invoice_date: str
+    currency: str = "EUR"
     category: Optional[str] = None
 
 

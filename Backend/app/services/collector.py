@@ -95,6 +95,7 @@ async def run_collection(db: AsyncSession) -> dict[str, Any]:
                 vat_rate=extracted["vat_rate"],
                 invoice_date=extracted["invoice_date"],
                 invoice_number=extracted["invoice_number"],
+                currency=extracted.get("currency", "EUR"),
                 category=category,
                 source="gmail",
                 status="pending",

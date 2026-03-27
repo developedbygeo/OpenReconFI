@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Matchbook API",
+    "title": "OpenReconFi API",
     "description": "Self-hosted agency finance ops \u2014 invoice collection, reconciliation, reporting.",
     "version": "0.1.0"
   },

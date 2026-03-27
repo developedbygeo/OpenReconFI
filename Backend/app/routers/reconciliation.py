@@ -136,9 +136,8 @@ async def period_overview(
     gap = matchable_debits - total_invoiced_incl
 
     is_complete = (
-        len(unmatched_invoices_list) == 0
-        and len(unmatched_txs) == 0
-        and total_invoices > 0
+        len(unmatched_txs) == 0
+        and len(matchable_txs) > 0
     )
 
     return PeriodReconciliation(
@@ -166,6 +165,7 @@ async def period_overview(
                 invoice_number=i.invoice_number,
                 amount_incl=i.amount_incl,
                 invoice_date=str(i.invoice_date),
+                currency=i.currency,
                 category=i.category,
             )
             for i in unmatched_invoices_list
