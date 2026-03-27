@@ -51,11 +51,11 @@ async def generate_report(
 
     if body.format == ReportFormat.pdf:
         content = await generate_pdf(db, label, periods)
-        filename = f"matchbook-report-{periods[0]}.pdf"
+        filename = f"openreconfi-report-{periods[0]}.pdf"
         media_type = "application/pdf"
     else:
         content = await generate_excel(db, label, periods)
-        filename = f"matchbook-report-{periods[0]}.xlsx"
+        filename = f"openreconfi-report-{periods[0]}.xlsx"
         media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
     # Upload to Drive in background: /Reports/<Month>/
@@ -106,7 +106,7 @@ async def preview_report(body: ReportRequest) -> ReportMeta:
     )
 
     ext = "pdf" if body.format == ReportFormat.pdf else "xlsx"
-    filename = f"matchbook-report-{periods[0]}.{ext}"
+    filename = f"openreconfi-report-{periods[0]}.{ext}"
 
     return ReportMeta(
         timeframe_label=label,
