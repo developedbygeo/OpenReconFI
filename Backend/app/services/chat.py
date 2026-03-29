@@ -162,9 +162,11 @@ async def _build_aggregates(db: AsyncSession) -> str:
         if inflows:
             parts.append(f"| Inflows (revenue) | €{inflows:,.2f} | {inflow_count} |")
         if outflows:
-            parts.append(f"| Outflows (expenses) | €{outflows:,.2f} | {outflow_count} |")
+            parts.append(f"| Outflows (all debits) | €{outflows:,.2f} | {outflow_count} |")
         if inflows and outflows:
             parts.append(f"| **Net** | **€{(inflows + outflows):,.2f}** | {inflow_count + outflow_count} |")
+        parts.append("")
+        parts.append("*Note: Outflows include ALL debits (business expenses, taxes, personal draws, etc). See 'Bank Transactions by Category' below for the breakdown.*")
 
     # Monthly bank trend
     tx_mom_result = await db.execute(
@@ -187,6 +189,46 @@ async def _build_aggregates(db: AsyncSession) -> str:
             inf = row[1] or Decimal(0)
             out = row[2] or Decimal(0)
             parts.append(f"| {row[0]} | €{inf:,.2f} | €{out:,.2f} | €{(inf + out):,.2f} | {row[3]} |")
+
+    # Outflows by category (expenses breakdown — these sum to the total outflows above)
+    tx_out_cat_result = await db.execute(
+        select(
+            func.coalesce(Transaction.category, "Uncategorized").label("cat"),
+            func.sum(Transaction.amount),
+            func.count(Transaction.id),
+        )
+        .where(Transaction.amount < 0)
+        .group_by(text("cat"))
+        .order_by(func.sum(Transaction.amount))
+        .limit(10)
+    )
+    tx_out_cat_rows = tx_out_cat_result.all()
+    if tx_out_cat_rows:
+        parts.append("\n## Outflows by Category (breakdown of total outflows — do NOT double-count)")
+        parts.append("| Category | Amount | Transactions |")
+        parts.append("|---|---|---|")
+        for row in tx_out_cat_rows:
+            parts.append(f"| {row[0]} | €{row[1]:,.2f} | {row[2]} |")
+
+    # Inflows by source (revenue breakdown — these sum to the total inflows above)
+    tx_in_cat_result = await db.execute(
+        select(
+            Transaction.counterparty,
+            func.sum(Transaction.amount),
+            func.count(Transaction.id),
+        )
+        .where(Transaction.amount > 0)
+        .group_by(Transaction.counterparty)
+        .order_by(func.sum(Transaction.amount).desc())
+        .limit(10)
+    )
+    tx_in_cat_rows = tx_in_cat_result.all()
+    if tx_in_cat_rows:
+        parts.append("\n## Revenue by Source (breakdown of total inflows — do NOT double-count)")
+        parts.append("| Source | Amount | Transactions |")
+        parts.append("|---|---|---|")
+        for row in tx_in_cat_rows:
+            parts.append(f"| {row[0]} | €{row[1]:,.2f} | {row[2]} |")
 
     # Top counterparties by volume
     cp_result = await db.execute(
@@ -325,15 +367,25 @@ async def chat_stream(
     client = _get_client()
     full_response: list[str] = []
 
-    async with client.messages.stream(
-        model="claude-sonnet-4-20250514",
-        max_tokens=2048,
-        system=SYSTEM_PROMPT,
-        messages=messages,
-    ) as stream:
-        async for text_chunk in stream.text_stream:
-            full_response.append(text_chunk)
-            yield text_chunk
+    try:
+        async with client.messages.stream(
+            model="claude-sonnet-4-20250514",
+            max_tokens=2048,
+            system=SYSTEM_PROMPT,
+            messages=messages,
+        ) as stream:
+            async for text_chunk in stream.text_stream:
+                full_response.append(text_chunk)
+                yield text_chunk
+    except anthropic.APIStatusError as e:
+        error_msg = "Sorry, the AI service is temporarily unavailable. Please try again in a moment."
+        if not full_response:
+            yield error_msg
+            full_response.append(error_msg)
+        else:
+            tail = "\n\n*[Response interrupted — service temporarily unavailable. Please try again.]*"
+            yield tail
+            full_response.append(tail)
 
     # 8. Save assistant message
     assistant_msg = ChatMessage(

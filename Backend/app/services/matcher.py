@@ -335,6 +335,8 @@ async def run_matching(
         tx_obj = await db.get(Transaction, mc.transaction_id)
         if tx_obj:
             tx_obj.status = TransactionStatus.matched
+            if inv_obj and inv_obj.category and not tx_obj.category:
+                tx_obj.category = inv_obj.category
 
         matched_inv_ids.add(mc.invoice_id)
         matched_tx_ids.add(mc.transaction_id)
@@ -426,9 +428,33 @@ async def run_matching(
             tx_obj = await db.get(Transaction, tx_id)
             if tx_obj:
                 tx_obj.status = TransactionStatus.matched
+                if inv.category and not tx_obj.category:
+                    tx_obj.category = inv.category
 
             used_tx_ids.add(tx_id)
             result.llm_matches.append(s)
+
+    # --- Auto-categorize transactions that will never match an invoice ---
+    # Withholdings → "Owner Draw"
+    withholding_txs = await db.execute(
+        select(Transaction).where(
+            Transaction.status == TransactionStatus.withholding,
+            Transaction.category.is_(None),
+        )
+    )
+    for tx in withholding_txs.scalars().all():
+        tx.category = "Owner Draw"
+
+    # Unmatched inflows → "Revenue"
+    revenue_txs = await db.execute(
+        select(Transaction).where(
+            Transaction.status == TransactionStatus.unmatched,
+            Transaction.amount > 0,
+            Transaction.category.is_(None),
+        )
+    )
+    for tx in revenue_txs.scalars().all():
+        tx.category = "Revenue"
 
     await db.commit()
     return result

@@ -65,6 +65,15 @@ async def upload_statement(
             status = TransactionStatus.no_invoice
         else:
             status = TransactionStatus.unmatched
+
+        # Auto-categorize when no category from parser
+        category = tx_data.get("category")
+        if not category:
+            if is_withholding:
+                category = "Owner Draw"
+            elif tx_data["amount"] > 0:
+                category = "Revenue"
+
         tx = Transaction(
             tx_date=tx_data["tx_date"],
             value_date=tx_data.get("value_date"),
@@ -74,7 +83,7 @@ async def upload_statement(
             description=tx_data["description"],
             counterparty=tx_data["counterparty"],
             counterparty_iban=tx_data.get("counterparty_iban"),
-            category=tx_data.get("category"),
+            category=category,
             period=tx_data["tx_date"].strftime("%Y-%m"),
             status=status,
         )
@@ -351,6 +360,8 @@ async def create_match(
     # Update statuses
     invoice.status = InvoiceStatus.matched
     transaction.status = TransactionStatus.matched
+    if invoice.category and not transaction.category:
+        transaction.category = invoice.category
 
     # Learn vendor alias
     await _learn_vendor_alias(db, invoice, transaction)
@@ -436,6 +447,8 @@ async def confirm_match(
     transaction = tx_result.scalar_one_or_none()
     if transaction:
         transaction.status = TransactionStatus.matched
+        if invoice and invoice.category and not transaction.category:
+            transaction.category = invoice.category
 
         # Vendor alias learning
         await _learn_vendor_alias(db, invoice, transaction)
