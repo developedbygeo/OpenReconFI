@@ -16,6 +16,7 @@ export * from './chatHistory';
 export * from './chatMessageRead';
 export * from './chatMessageSend';
 export * from './chatRole';
+export * from './chatSuggestions';
 export * from './confirmedBy';
 export * from './deleteAllInvoicesInvoicesDelete200';
 export * from './deleteAllTransactionsReconciliationTransactionsDelete200';
