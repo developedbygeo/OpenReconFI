@@ -5,7 +5,7 @@ import {
   Text,
   Skeleton,
 } from '@mantine/core'
-import { useChatSuggestionsQuery } from '../../../store/api.ts'
+import { useChatSuggestionsQuery } from '../../../store/chatApi.ts'
 
 const FALLBACK_QUESTIONS = [
   'What are my top 5 vendors by spend?',

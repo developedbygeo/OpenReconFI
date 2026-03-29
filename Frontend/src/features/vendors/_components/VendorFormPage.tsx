@@ -17,7 +17,7 @@ import {
   useGetVendorQuery,
   useCreateVendorMutation,
   useUpdateVendorMutation,
-} from '../../../store/api.ts'
+} from '../../../store/vendorsApi.ts'
 import type { BillingCycle } from '../../../api/types/index.ts'
 
 const BILLING_CYCLES = [

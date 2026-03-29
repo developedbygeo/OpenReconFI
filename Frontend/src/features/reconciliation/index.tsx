@@ -12,13 +12,13 @@ import { IconAlertCircle } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import {
   useListMatchesQuery,
-  useListInvoicesQuery,
   useListTransactionsQuery,
   useTriggerMatchingMutation,
   useConfirmMatchMutation,
   useRejectMatchMutation,
   useReassignMatchMutation,
-} from '../../store/api.ts'
+} from '../../store/reconciliationApi.ts'
+import { useListInvoicesQuery } from '../../store/invoicesApi.ts'
 import type { MatchRead } from '../../api/types/index.ts'
 import { MatchTable } from './_components/MatchTable.tsx'
 import { ExceptionCard } from './_components/ExceptionCard.tsx'

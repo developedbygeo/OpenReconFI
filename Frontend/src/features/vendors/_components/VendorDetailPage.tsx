@@ -10,7 +10,7 @@ import {
 } from '@mantine/core'
 import { IconArrowLeft, IconEdit, IconAlertCircle } from '@tabler/icons-react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useGetVendorQuery, useGetVendorInvoicesQuery } from '../../../store/api.ts'
+import { useGetVendorQuery, useGetVendorInvoicesQuery } from '../../../store/vendorsApi.ts'
 import { formatMoney } from '../../../utils/format.ts'
 import { VendorDetailSkeleton } from './VendorDetailSkeleton.tsx'
 

@@ -11,7 +11,7 @@ import { Dropzone } from '@mantine/dropzone'
 import '@mantine/dropzone/styles.css'
 import { IconUpload, IconFileSpreadsheet, IconX, IconAlertCircle } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
-import { useUploadStatementMutation } from '../../../store/api.ts'
+import { useUploadStatementMutation } from '../../../store/reconciliationApi.ts'
 import { useNavigate } from 'react-router-dom'
 
 const ACCEPTED_MIME = [

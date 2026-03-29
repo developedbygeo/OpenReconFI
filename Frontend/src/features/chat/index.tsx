@@ -14,7 +14,7 @@ import { ChatInput } from './_components/ChatInput.tsx'
 import { StarterQuestions } from './_components/StarterQuestions.tsx'
 import { useChat } from './_hooks/useChat.ts'
 import { ChatSkeleton } from './_components/ChatSkeleton.tsx'
-import { useChatSuggestionsQuery } from '../../store/api.ts'
+import { useChatSuggestionsQuery } from '../../store/chatApi.ts'
 
 export type { LocalMessage } from './_hooks/useChat.ts'
 

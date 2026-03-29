@@ -9,7 +9,7 @@ import {
 } from '@mantine/core'
 import { IconPlus, IconAlertCircle } from '@tabler/icons-react'
 import { useNavigate } from 'react-router-dom'
-import { useListVendorsQuery } from '../../../store/api.ts'
+import { useListVendorsQuery } from '../../../store/vendorsApi.ts'
 import { VendorListSkeleton } from './VendorListSkeleton.tsx'
 
 const CYCLE_COLORS: Record<string, string> = {

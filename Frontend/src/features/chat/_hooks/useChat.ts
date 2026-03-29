@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { notifications } from '@mantine/notifications'
-import { useChatHistoryQuery, useClearChatHistoryMutation } from '../../../store/api.ts'
+import { useChatHistoryQuery, useClearChatHistoryMutation } from '../../../store/chatApi.ts'
 import type { ChatMessageRead } from '../../../api/types/index.ts'
 
 export interface LocalMessage {

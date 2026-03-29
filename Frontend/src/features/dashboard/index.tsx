@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Title, Stack, Group, Grid } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
-import { useMissingInvoiceAlertsQuery } from '../../store/api.ts';
+import { useMissingInvoiceAlertsQuery } from '../../store/dashboardApi.ts';
 import { KpiCards } from './_components/KpiCards.tsx';
 import { SpendCharts } from './_components/SpendCharts.tsx';
 import { VatSummaryTable } from './_components/VatSummaryTable.tsx';

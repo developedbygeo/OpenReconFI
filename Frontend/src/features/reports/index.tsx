@@ -9,7 +9,7 @@ import {
 } from '@mantine/core'
 import { IconDownload } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
-import { usePreviewReportMutation } from '../../store/api.ts'
+import { usePreviewReportMutation } from '../../store/reportsApi.ts'
 import type { TimeframeType, ReportFormat } from '../../api/types/index.ts'
 import { TimeframeSelector } from './_components/TimeframeSelector.tsx'
 import { ReportPreview } from './_components/ReportPreview.tsx'

@@ -10,7 +10,8 @@ import {
   Group,
 } from '@mantine/core'
 import { IconMailForward, IconAlertCircle } from '@tabler/icons-react'
-import { useListJobsQuery, useTriggerJobMutation, api } from '../../../store/api.ts'
+import { useListJobsQuery, useTriggerJobMutation } from '../../../store/jobsApi.ts'
+import { api } from '../../../store/api.ts'
 import { useAppDispatch } from '../../../store/hooks.ts'
 import { JobSummary } from './JobSummary.tsx'
 import { CollectionSkeleton } from './CollectionSkeleton.tsx'

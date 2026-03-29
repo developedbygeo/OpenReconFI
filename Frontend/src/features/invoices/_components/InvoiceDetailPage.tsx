@@ -13,7 +13,7 @@ import {
 } from '@mantine/core'
 import { IconAlertCircle, IconArrowLeft, IconExternalLink } from '@tabler/icons-react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useGetInvoiceQuery } from '../../../store/api.ts'
+import { useGetInvoiceQuery } from '../../../store/invoicesApi.ts'
 import { formatMoney } from '../../../utils/format.ts'
 import { InvoiceDetailSkeleton } from './InvoiceDetailSkeleton.tsx'
 

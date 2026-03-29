@@ -14,7 +14,7 @@ import { IconBuildingStore, IconCalendar, IconReceipt } from '@tabler/icons-reac
 import { notifications } from '@mantine/notifications'
 import type { InvoiceRead } from '../../../api/types/index.ts'
 import type { TransactionRead } from '../../../api/types/index.ts'
-import { useListCategoriesQuery } from '../../../store/api.ts'
+import { useListCategoriesQuery } from '../../../store/categoriesApi.ts'
 
 interface VendorRow {
   vendor: string
