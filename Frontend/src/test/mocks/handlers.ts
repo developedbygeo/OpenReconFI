@@ -20,7 +20,7 @@ import type {
   ReportMeta,
   ChatHistory,
   ChatClearResponse,
-} from '../..http://localhost:3000/api/types/index.ts'
+} from '../../api/types/index.ts'
 
 export const handlers = [
   // ── Invoices ──
