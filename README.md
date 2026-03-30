@@ -4,6 +4,8 @@ Self-hosted agency finance ops — invoice collection, bank reconciliation, vend
 
 OpenReconFi automates the tedious parts of agency bookkeeping: it pulls invoices from Gmail, extracts metadata with Claude, reconciles them against bank statements using LLM matching, and gives you an interactive chat interface to query your financial data.
 
+![OpenReconFi Dashboard](docs/screenshots/openreconfi-sample.png)
+
 ## Features
 
 - **Invoice Collection** — Syncs Gmail for invoices, extracts metadata via Claude, organizes in Google Drive
