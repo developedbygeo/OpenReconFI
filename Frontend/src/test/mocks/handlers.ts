@@ -20,11 +20,11 @@ import type {
   ReportMeta,
   ChatHistory,
   ChatClearResponse,
-} from '../../api/types/index.ts'
+} from '../..http://localhost:3000/api/types/index.ts'
 
 export const handlers = [
   // ── Invoices ──
-  http.get('/api/invoices', ({ request }) => {
+  http.get('http://localhost:3000/api/invoices', ({ request }) => {
     const url = new URL(request.url)
     const status = url.searchParams.get('status')
     const skip = Number(url.searchParams.get('skip') ?? '0')
@@ -42,7 +42,7 @@ export const handlers = [
     } satisfies InvoiceList)
   }),
 
-  http.get('/api/invoices/:id', ({ params }) => {
+  http.get('http://localhost:3000/api/invoices/:id', ({ params }) => {
     const invoice = mockInvoices.find((inv) => inv.id === params.id)
     if (!invoice) {
       return new HttpResponse(null, { status: 404 })
@@ -51,7 +51,7 @@ export const handlers = [
   }),
 
   // ── Jobs ──
-  http.get('/api/jobs', ({ request }) => {
+  http.get('http://localhost:3000/api/jobs', ({ request }) => {
     const url = new URL(request.url)
     const jobType = url.searchParams.get('job_type')
     const skip = Number(url.searchParams.get('skip') ?? '0')
@@ -69,7 +69,7 @@ export const handlers = [
     } satisfies JobList)
   }),
 
-  http.get('/api/jobs/:id', ({ params }) => {
+  http.get('http://localhost:3000/api/jobs/:id', ({ params }) => {
     const job = mockJobs.find((j) => j.id === params.id)
     if (!job) {
       return new HttpResponse(null, { status: 404 })
@@ -77,7 +77,7 @@ export const handlers = [
     return HttpResponse.json(job)
   }),
 
-  http.post('/api/jobs', async ({ request }) => {
+  http.post('http://localhost:3000/api/jobs', async ({ request }) => {
     const body = (await request.json()) as { job_type: string }
     const newJob: JobRead = {
       id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
@@ -90,14 +90,14 @@ export const handlers = [
   }),
 
   // ── Reconciliation ──
-  http.post('/api/reconciliation/upload', () => {
+  http.post('http://localhost:3000/api/reconciliation/upload', () => {
     return HttpResponse.json({
       transactions_parsed: 12,
       period: '2026-03',
     } satisfies StatementUploadResponse, { status: 201 })
   }),
 
-  http.get('/api/reconciliation/transactions', ({ request }) => {
+  http.get('http://localhost:3000/api/reconciliation/transactions', ({ request }) => {
     const url = new URL(request.url)
     const period = url.searchParams.get('period')
     const status = url.searchParams.get('status')
@@ -115,7 +115,7 @@ export const handlers = [
     } satisfies TransactionList)
   }),
 
-  http.post('/api/reconciliation/match', async ({ request }) => {
+  http.post('http://localhost:3000/api/reconciliation/match', async ({ request }) => {
     const body = (await request.json()) as { period: string }
     return HttpResponse.json({
       matches_suggested: 3,
@@ -123,7 +123,7 @@ export const handlers = [
     } satisfies MatchTriggerResponse)
   }),
 
-  http.get('/api/reconciliation/matches', ({ request }) => {
+  http.get('http://localhost:3000/api/reconciliation/matches', ({ request }) => {
     const url = new URL(request.url)
     const period = url.searchParams.get('period')
     const skip = Number(url.searchParams.get('skip') ?? '0')
@@ -139,13 +139,13 @@ export const handlers = [
     } satisfies MatchList)
   }),
 
-  http.get('/api/reconciliation/matches/:matchId', ({ params }) => {
+  http.get('http://localhost:3000/api/reconciliation/matches/:matchId', ({ params }) => {
     const match = mockMatches.find((m) => m.id === params.matchId)
     if (!match) return new HttpResponse(null, { status: 404 })
     return HttpResponse.json(match)
   }),
 
-  http.post('/api/reconciliation/matches/:matchId/confirm', ({ params }) => {
+  http.post('http://localhost:3000/api/reconciliation/matches/:matchId/confirm', ({ params }) => {
     const match = mockMatches.find((m) => m.id === params.matchId)
     if (!match) return new HttpResponse(null, { status: 404 })
     const confirmed: MatchRead = {
@@ -156,13 +156,13 @@ export const handlers = [
     return HttpResponse.json(confirmed)
   }),
 
-  http.delete('/api/reconciliation/matches/:matchId', ({ params }) => {
+  http.delete('http://localhost:3000/api/reconciliation/matches/:matchId', ({ params }) => {
     const match = mockMatches.find((m) => m.id === params.matchId)
     if (!match) return new HttpResponse(null, { status: 404 })
     return HttpResponse.json(match)
   }),
 
-  http.patch('/api/reconciliation/matches/:matchId/reassign', async ({ params, request }) => {
+  http.patch('http://localhost:3000/api/reconciliation/matches/:matchId/reassign', async ({ params, request }) => {
     const match = mockMatches.find((m) => m.id === params.matchId)
     if (!match) return new HttpResponse(null, { status: 404 })
     const body = (await request.json()) as { invoice_id?: string; transaction_id?: string }
@@ -175,7 +175,7 @@ export const handlers = [
   }),
 
   // ── Vendors ──
-  http.get('/api/vendors', ({ request }) => {
+  http.get('http://localhost:3000/api/vendors', ({ request }) => {
     const url = new URL(request.url)
     const skip = Number(url.searchParams.get('skip') ?? '0')
     const limit = Number(url.searchParams.get('limit') ?? '50')
@@ -186,7 +186,7 @@ export const handlers = [
     } satisfies VendorList)
   }),
 
-  http.get('/api/vendors/:vendorId/invoices', ({ params, request }) => {
+  http.get('http://localhost:3000/api/vendors/:vendorId/invoices', ({ params, request }) => {
     const url = new URL(request.url)
     const skip = Number(url.searchParams.get('skip') ?? '0')
     const limit = Number(url.searchParams.get('limit') ?? '50')
@@ -200,13 +200,13 @@ export const handlers = [
     } satisfies InvoiceList)
   }),
 
-  http.get('/api/vendors/:vendorId', ({ params }) => {
+  http.get('http://localhost:3000/api/vendors/:vendorId', ({ params }) => {
     const vendor = mockVendors.find((v) => v.id === params.vendorId)
     if (!vendor) return new HttpResponse(null, { status: 404 })
     return HttpResponse.json(vendor)
   }),
 
-  http.post('/api/vendors', async ({ request }) => {
+  http.post('http://localhost:3000/api/vendors', async ({ request }) => {
     const body = (await request.json()) as VendorRead
     const newVendor: VendorRead = {
       id: 'v-new-0000-0000-0000-000000000000',
@@ -219,49 +219,84 @@ export const handlers = [
     return HttpResponse.json(newVendor, { status: 201 })
   }),
 
-  http.patch('/api/vendors/:vendorId', async ({ params, request }) => {
+  http.patch('http://localhost:3000/api/vendors/:vendorId', async ({ params, request }) => {
     const vendor = mockVendors.find((v) => v.id === params.vendorId)
     if (!vendor) return new HttpResponse(null, { status: 404 })
     const body = (await request.json()) as Partial<VendorRead>
     return HttpResponse.json({ ...vendor, ...body })
   }),
 
-  http.delete('/api/vendors/:vendorId', ({ params }) => {
+  http.delete('http://localhost:3000/api/vendors/:vendorId', ({ params }) => {
     const vendor = mockVendors.find((v) => v.id === params.vendorId)
     if (!vendor) return new HttpResponse(null, { status: 404 })
     return HttpResponse.json(vendor)
   }),
 
   // ── Dashboard ──
-  http.get('/api/dashboard/missing-invoices', () => {
+  http.get('http://localhost:3000/api/dashboard/missing-invoices', () => {
     return HttpResponse.json({
       items: mockMissingInvoiceAlerts,
       total: mockMissingInvoiceAlerts.length,
     } satisfies MissingInvoiceAlertList)
   }),
 
-  http.get('/api/dashboard/spend-summary', () => {
+  http.get('http://localhost:3000/api/dashboard/spend-summary', () => {
     return HttpResponse.json(mockSpendSummary)
   }),
 
-  http.get('/api/dashboard/spend-by-category', () => {
+  http.get('http://localhost:3000/api/dashboard/spend-by-category', () => {
     return HttpResponse.json({ items: mockCategorySpend })
   }),
 
-  http.get('/api/dashboard/spend-by-vendor', () => {
+  http.get('http://localhost:3000/api/dashboard/spend-by-vendor', () => {
     return HttpResponse.json({ items: mockVendorSpend })
   }),
 
-  http.get('/api/dashboard/vat-summary', () => {
+  http.get('http://localhost:3000/api/dashboard/vat-summary', () => {
     return HttpResponse.json({ items: mockVatBreakdown })
   }),
 
-  http.get('/api/dashboard/mom-comparison', () => {
+  http.get('http://localhost:3000/api/dashboard/mom-comparison', () => {
     return HttpResponse.json({ items: mockMomComparison })
   }),
 
+  http.get('http://localhost:3000/api/dashboard/tax-summary', () => {
+    return HttpResponse.json({ total_amount: '0.00', transaction_count: 0, by_category: [] })
+  }),
+
+  http.get('http://localhost:3000/api/dashboard/earnings', () => {
+    return HttpResponse.json({ total_earnings: '0.00', transaction_count: 0, by_category: [] })
+  }),
+
+  http.get('http://localhost:3000/api/dashboard/withholdings', () => {
+    return HttpResponse.json({ total_withheld: '0.00', transaction_count: 0, by_category: [] })
+  }),
+
+  http.get('http://localhost:3000/api/reconciliation/overview', () => {
+    return HttpResponse.json({
+      period: '2026-03',
+      invoice_count: 3,
+      matched_invoice_count: 1,
+      invoiced_total: '97.40',
+      transaction_count: 3,
+      matched_transaction_count: 1,
+      bank_debits: '157.88',
+      earnings: '0.00',
+      earnings_count: 0,
+      gap: '60.48',
+      no_invoice_expenses: '75.00',
+      no_invoice_expense_count: 1,
+      owner_withdrawals: '0.00',
+      owner_withdrawal_count: 0,
+      unmatched_invoice_list: [],
+      unmatched_transaction_list: [],
+      withholding_total: '0.00',
+      withholding_count: 0,
+    })
+  }),
+
   // ── Reports ──
-  http.post('/api/reports/preview', async ({ request }) => {
+  http.post('http://localhost:3000/api/reports/preview', async ({ request }) => {
     const body = (await request.json()) as { timeframe: string; format: string }
     return HttpResponse.json({
       timeframe_label: `${body.timeframe} report`,
@@ -271,7 +306,7 @@ export const handlers = [
     } satisfies ReportMeta)
   }),
 
-  http.post('/api/reports/generate', () => {
+  http.post('http://localhost:3000/api/reports/generate', () => {
     return new HttpResponse(new Blob(['mock report content']), {
       status: 200,
       headers: {
@@ -281,15 +316,34 @@ export const handlers = [
     })
   }),
 
+  // ── Categories ──
+  http.get('http://localhost:3000/api/categories', () => {
+    return HttpResponse.json([
+      { id: 'cat-1', name: 'SaaS', color: 'blue' },
+      { id: 'cat-2', name: 'Hosting', color: 'green' },
+      { id: 'cat-3', name: 'Design', color: 'purple' },
+    ])
+  }),
+
   // ── Chat ──
-  http.get('/api/chat/history', () => {
+  http.get('http://localhost:3000/api/chat/suggestions', () => {
+    return HttpResponse.json({
+      questions: [
+        'What are my top vendors?',
+        'Show me unmatched invoices',
+        'VAT summary this quarter',
+      ],
+    })
+  }),
+
+  http.get('http://localhost:3000/api/chat/history', () => {
     return HttpResponse.json({
       items: mockChatMessages,
       total: mockChatMessages.length,
     } satisfies ChatHistory)
   }),
 
-  http.post('/api/chat/message', async ({ request }) => {
+  http.post('http://localhost:3000/api/chat/message', async ({ request }) => {
     const body = (await request.json()) as { message: string }
     const responseText = `You asked: "${body.message}". Based on your expense data, here is a helpful answer with insights about your spending patterns.`
 
@@ -316,7 +370,7 @@ export const handlers = [
     })
   }),
 
-  http.delete('/api/chat/history', () => {
+  http.delete('http://localhost:3000/api/chat/history', () => {
     return HttpResponse.json({ deleted: 2 } satisfies ChatClearResponse)
   }),
 ]

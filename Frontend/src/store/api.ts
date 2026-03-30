@@ -11,8 +11,10 @@ export const TAG = {
   CHAT: 'Chat',
 } as const
 
+const isTest = import.meta.env?.MODE === 'test'
+
 export const api = createApi({
-  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  baseQuery: fetchBaseQuery({ baseUrl: isTest ? 'http://localhost:3000/api' : '/api' }),
   refetchOnFocus: true,
   refetchOnReconnect: true,
   tagTypes: Object.values(TAG),
