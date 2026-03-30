@@ -30,7 +30,6 @@ OpenReconFi automates the tedious parts of agency bookkeeping: it pulls invoices
 - Docker & Docker Compose
 - API keys: [Anthropic](https://console.anthropic.com/) + [OpenAI](https://platform.openai.com/)
 - Google Cloud project with Gmail API + Drive API enabled
-- Node.js 18+ and [pnpm](https://pnpm.io/)
 
 ### 1. Clone and configure
 
@@ -40,24 +39,37 @@ cp Backend/.env.example Backend/.env
 # Fill in your API keys and Google OAuth credentials (see Backend README)
 ```
 
-### 2. Start the backend
+### 2. Start everything
 
 ```bash
-cd Backend
 docker compose up --build
 ```
 
-This starts Postgres (with pgvector), runs migrations, and serves the API at **http://localhost:8000/docs**.
+This starts all three services:
 
-### 3. Start the frontend
+| Service | URL | Description |
+|---|---|---|
+| **Frontend** | http://localhost:3000 | React app (nginx) |
+| **Backend** | http://localhost:8000/docs | FastAPI (Swagger UI) |
+| **Postgres** | localhost:5432 | PostgreSQL + pgvector |
+
+The frontend proxies `/api/*` requests to the backend automatically.
+
+### Development mode
+
+For frontend hot-reload during development, run the backend via Docker and the frontend via Vite:
 
 ```bash
+# Start backend + database
+docker compose up postgres backend --build
+
+# In another terminal — start frontend with HMR
 cd Frontend
 pnpm install
 pnpm run dev
 ```
 
-Frontend is live at **http://localhost:5173** and proxies API requests to the backend.
+Frontend dev server is at **http://localhost:5173** with hot module replacement.
 
 ## Project Structure
 
@@ -68,13 +80,15 @@ openreconfi/
 │   ├── alembic/           # Database migrations
 │   ├── tests/             # pytest-asyncio test suite
 │   ├── scripts/           # Utility scripts (OAuth, backfill, etc.)
-│   └── docker-compose.yml
+│   └── Dockerfile
 ├── Frontend/              # React SPA
 │   ├── src/
 │   │   ├── features/      # Feature modules (dashboard, invoices, chat, etc.)
 │   │   ├── store/         # RTK Query API slices
 │   │   └── components/    # Shared components
+│   ├── Dockerfile
 │   └── package.json
+├── docker-compose.yml     # Full-stack orchestration
 └── openapi.json           # Auto-generated OpenAPI spec
 ```
 
