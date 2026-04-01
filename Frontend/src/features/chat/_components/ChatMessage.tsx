@@ -29,7 +29,7 @@ export function ChatMessage({
       radius="md"
       withBorder={msg.role === 'assistant'}
       bg={msg.role === 'user' ? 'var(--mantine-color-blue-light)' : undefined}
-      maw="80%"
+      maw={{ base: '95%', sm: '80%' }}
       ml={msg.role === 'user' ? 'auto' : undefined}
     >
       <Text size="xs" c="dimmed" mb={4}>

@@ -62,24 +62,23 @@ export function TimeframeSelector({
           label="Month"
           value={singleMonth}
           onChange={setSingleMonth}
-          w={250}
         />
       )}
 
       {timeframe === 'quarter' && (
-        <Group>
+        <Group wrap="wrap">
           <Select
             label="Quarter"
             data={QUARTER_OPTIONS}
             value={quarter}
             onChange={setQuarter}
-            w={200}
+            style={{ flex: '1 1 140px' }}
           />
           <NumberInput
             label="Year"
             value={year}
             onChange={setYear}
-            w={120}
+            style={{ flex: '0 0 100px' }}
           />
         </Group>
       )}
@@ -89,23 +88,23 @@ export function TimeframeSelector({
           label="Year"
           value={year}
           onChange={setYear}
-          w={120}
+          style={{ maxWidth: 120 }}
         />
       )}
 
       {timeframe === 'custom' && (
-        <Group>
+        <Group wrap="wrap">
           <MonthPickerInput
             label="From"
             value={fromMonth}
             onChange={setFromMonth}
-            w={200}
+            style={{ flex: '1 1 160px' }}
           />
           <MonthPickerInput
             label="To"
             value={toMonth}
             onChange={setToMonth}
-            w={200}
+            style={{ flex: '1 1 160px' }}
           />
         </Group>
       )}

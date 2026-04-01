@@ -12,7 +12,7 @@ export function KpiCards({ summary, tax, earnings, withholdings }: {
   withholdings?: WithholdingsSummary
 }) {
   return (
-    <SimpleGrid cols={{ base: 2, sm: 3, lg: 7 }}>
+    <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, lg: 7 }}>
       <Card withBorder>
         <Text size="xs" c="dimmed" tt="uppercase">Earnings</Text>
         <Text size="xl" fw={700} c="green">

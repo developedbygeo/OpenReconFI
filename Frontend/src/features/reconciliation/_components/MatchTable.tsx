@@ -5,6 +5,7 @@ import {
   Group,
   Text,
   Progress,
+  ScrollArea,
 } from '@mantine/core'
 import { IconCheck, IconX, IconArrowsShuffle } from '@tabler/icons-react'
 import type { MatchRead, InvoiceRead, TransactionRead } from '../../../api/types/index.ts'
@@ -32,7 +33,8 @@ export function MatchTable({
   onReassign: (match: MatchRead) => void
 }) {
   return (
-    <Table striped highlightOnHover>
+    <ScrollArea>
+    <Table striped highlightOnHover miw={700}>
       <Table.Thead>
         <Table.Tr>
           <Table.Th>Invoice</Table.Th>
@@ -125,5 +127,6 @@ export function MatchTable({
         })}
       </Table.Tbody>
     </Table>
+    </ScrollArea>
   )
 }

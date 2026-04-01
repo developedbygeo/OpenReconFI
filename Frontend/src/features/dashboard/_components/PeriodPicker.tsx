@@ -1,4 +1,4 @@
-import { SegmentedControl, Group } from '@mantine/core';
+import { SegmentedControl, Select, Group } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import '@mantine/dates/styles.css';
 
@@ -71,15 +71,23 @@ export function PeriodPicker({
   onCustomMonthChange: (v: string | null) => void;
 }) {
   return (
-    <Group gap="sm">
-      <SegmentedControl size="xs" data={PRESETS} value={preset} onChange={onPresetChange} />
+    <Group gap="sm" wrap="wrap">
+      <SegmentedControl size="xs" data={PRESETS} value={preset} onChange={onPresetChange} visibleFrom="sm" />
+      <Select
+        size="xs"
+        data={PRESETS}
+        value={preset}
+        onChange={(v) => onPresetChange(v ?? 'this_month')}
+        hiddenFrom="sm"
+        style={{ flex: '1 1 140px' }}
+      />
       {preset === 'custom' && (
         <MonthPickerInput
           placeholder="Pick month"
           value={customMonth}
           onChange={onCustomMonthChange}
-          w={160}
           size="xs"
+          style={{ minWidth: 140 }}
         />
       )}
     </Group>

@@ -7,6 +7,7 @@ import {
   Alert,
   Table,
   Text,
+  ScrollArea,
 } from '@mantine/core'
 import { IconArrowLeft, IconEdit, IconAlertCircle } from '@tabler/icons-react'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -97,7 +98,8 @@ export function VendorDetailPage() {
       {invoices.length === 0 ? (
         <Text c="dimmed">No invoices for this vendor.</Text>
       ) : (
-        <Table striped highlightOnHover>
+        <ScrollArea>
+        <Table striped highlightOnHover miw={500}>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Invoice #</Table.Th>
@@ -127,6 +129,7 @@ export function VendorDetailPage() {
             ))}
           </Table.Tbody>
         </Table>
+        </ScrollArea>
       )}
     </Stack>
   )

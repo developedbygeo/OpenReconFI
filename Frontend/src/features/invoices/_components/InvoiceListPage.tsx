@@ -3,12 +3,14 @@ import {
   Table,
   Badge,
   Title,
+  Stack,
   Group,
   Select,
   Anchor,
   Alert,
   Text,
   Pagination,
+  ScrollArea,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { IconExternalLink, IconAlertCircle } from '@tabler/icons-react'
@@ -76,9 +78,9 @@ export function InvoiceListPage() {
 
   return (
     <>
-      <Group justify="space-between" mb="md">
+      <Stack gap="xs" mb="md">
         <Title order={2}>Invoices</Title>
-        <Group>
+        <Group wrap="wrap">
           <Select
             placeholder="Filter by category"
             clearable
@@ -88,7 +90,7 @@ export function InvoiceListPage() {
               setCategoryFilter(v)
               setPage(1)
             }}
-            w={200}
+            style={{ flex: '1 1 160px', maxWidth: 200 }}
           />
           <Select
             placeholder="Filter by status"
@@ -99,16 +101,17 @@ export function InvoiceListPage() {
               setStatusFilter(v)
               setPage(1)
             }}
-            w={180}
+            style={{ flex: '1 1 140px', maxWidth: 180 }}
           />
         </Group>
-      </Group>
+      </Stack>
 
       {invoices.length === 0 ? (
         <Text c="dimmed">No invoices found.</Text>
       ) : (
         <>
-          <Table striped highlightOnHover>
+          <ScrollArea>
+          <Table striped highlightOnHover miw={600}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Vendor</Table.Th>
@@ -137,7 +140,7 @@ export function InvoiceListPage() {
                       data={categoryNames}
                       value={inv.category ?? null}
                       onChange={(v) => handleCategoryChange(inv.id, v)}
-                      w={160}
+                      miw={120}
                     />
                   </Table.Td>
                   <Table.Td>
@@ -158,6 +161,7 @@ export function InvoiceListPage() {
               ))}
             </Table.Tbody>
           </Table>
+          </ScrollArea>
 
           {total > PAGE_SIZE && (
             <Group justify="center" mt="md">

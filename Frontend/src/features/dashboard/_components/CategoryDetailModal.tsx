@@ -9,6 +9,7 @@ import {
   Loader,
   Tabs,
   Select,
+  ScrollArea,
 } from '@mantine/core'
 import { IconBuildingStore, IconCalendar, IconReceipt } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
@@ -199,7 +200,7 @@ export function CategoryDetailModal({ category, periods, opened, onClose }: {
 
             {hasInvoices && (
               <Tabs.Panel value="vendor" pt="sm">
-                <Table striped highlightOnHover>
+                <ScrollArea><Table striped highlightOnHover miw={450}>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Vendor</Table.Th>
@@ -220,13 +221,13 @@ export function CategoryDetailModal({ category, periods, opened, onClose }: {
                       </Table.Tr>
                     ))}
                   </Table.Tbody>
-                </Table>
+                </Table></ScrollArea>
               </Tabs.Panel>
             )}
 
             {hasInvoices && (
               <Tabs.Panel value="month" pt="sm">
-                <Table striped highlightOnHover>
+                <ScrollArea><Table striped highlightOnHover miw={450}>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Period</Table.Th>
@@ -247,13 +248,13 @@ export function CategoryDetailModal({ category, periods, opened, onClose }: {
                       </Table.Tr>
                     ))}
                   </Table.Tbody>
-                </Table>
+                </Table></ScrollArea>
               </Tabs.Panel>
             )}
 
             {hasTransactions && (
               <Tabs.Panel value="transactions" pt="sm">
-                <Table striped highlightOnHover>
+                <ScrollArea><Table striped highlightOnHover miw={450}>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Date</Table.Th>
@@ -276,13 +277,13 @@ export function CategoryDetailModal({ category, periods, opened, onClose }: {
                             data={categoryNames}
                             value={tx.category ?? null}
                             onChange={(val) => handleCategoryChange(tx.id, val)}
-                            w={160}
+                            miw={120}
                           />
                         </Table.Td>
                       </Table.Tr>
                     ))}
                   </Table.Tbody>
-                </Table>
+                </Table></ScrollArea>
               </Tabs.Panel>
             )}
           </Tabs>

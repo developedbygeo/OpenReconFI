@@ -5,6 +5,7 @@ import {
   Alert,
   Table,
   Badge,
+  ScrollArea,
 } from '@mantine/core'
 import { IconAlertCircle, IconAlertTriangle } from '@tabler/icons-react'
 import type { MissingInvoiceAlertList } from '../../../api/types/index.ts'
@@ -21,7 +22,8 @@ export function MissingInvoiceAlerts({ alerts, navigate }: {
             <IconAlertTriangle size={20} color="var(--mantine-color-orange-6)" />
             <Title order={4}>Missing Invoice Alerts</Title>
           </Group>
-          <Table striped highlightOnHover>
+          <ScrollArea>
+          <Table striped highlightOnHover miw={400}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Vendor</Table.Th>
@@ -45,6 +47,7 @@ export function MissingInvoiceAlerts({ alerts, navigate }: {
               ))}
             </Table.Tbody>
           </Table>
+          </ScrollArea>
         </Card>
       )}
 

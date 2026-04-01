@@ -15,6 +15,7 @@ import {
   Modal,
   Textarea,
   Select,
+  ScrollArea,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { IconCheck, IconAlertTriangle, IconX } from '@tabler/icons-react'
@@ -94,7 +95,7 @@ export function ReconciliationOverview({ period }: { period: string }) {
         )}
       </Group>
 
-      <SimpleGrid cols={{ base: 2, sm: 3, md: 6 }}>
+      <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, md: 6 }}>
         <Card withBorder>
           <Text size="xs" c="dimmed" tt="uppercase">Invoices</Text>
           <Text size="lg" fw={700}>{data.matched_invoices}/{data.total_invoices}</Text>
@@ -143,7 +144,8 @@ export function ReconciliationOverview({ period }: { period: string }) {
       {data.unmatched_invoice_list.length > 0 && (
         <Card withBorder>
           <Title order={5} mb="xs">Unmatched Invoices</Title>
-          <Table striped highlightOnHover>
+          <ScrollArea>
+          <Table striped highlightOnHover miw={500}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Vendor</Table.Th>
@@ -169,13 +171,15 @@ export function ReconciliationOverview({ period }: { period: string }) {
               ))}
             </Table.Tbody>
           </Table>
+          </ScrollArea>
         </Card>
       )}
 
       {data.unmatched_transaction_list.length > 0 && (
         <Card withBorder>
           <Title order={5} mb="xs">Unmatched Transactions</Title>
-          <Table striped highlightOnHover>
+          <ScrollArea>
+          <Table striped highlightOnHover miw={600}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Counterparty</Table.Th>
@@ -219,6 +223,7 @@ export function ReconciliationOverview({ period }: { period: string }) {
               ))}
             </Table.Tbody>
           </Table>
+          </ScrollArea>
         </Card>
       )}
 

@@ -3,12 +3,15 @@ import {
   Title,
   Stack,
   Group,
+  SimpleGrid,
   Card,
   Table,
   Text,
   Badge,
   Button,
   Alert,
+  ScrollArea,
+  Box,
 } from '@mantine/core'
 import { MonthPickerInput } from '@mantine/dates'
 import '@mantine/dates/styles.css'
@@ -67,13 +70,13 @@ export function ManualMatchPage() {
 
   return (
     <Stack>
-      <Group justify="space-between">
+      <Group justify="space-between" wrap="wrap">
         <Title order={2}>Manual Matching</Title>
         <MonthPickerInput
           label="Period"
           value={pickerValue ? new Date(pickerValue) : lastMonth()}
           onChange={(v) => { setPickerValue(v); setSelectedInvoice(null); setSelectedTransaction(null) }}
-          w={180}
+          style={{ flex: '0 0 auto', minWidth: 160 }}
         />
       </Group>
 
@@ -81,9 +84,9 @@ export function ManualMatchPage() {
 
       {/* Selection summary + match button */}
       <Card withBorder>
-        <Group justify="space-between">
-          <Group gap="lg">
-            <div>
+        <Stack gap="sm">
+          <Group gap="lg" wrap="wrap">
+            <div style={{ flex: '1 1 180px' }}>
               <Text size="xs" c="dimmed" tt="uppercase">Selected Invoice</Text>
               {selectedInv ? (
                 <Text size="sm" fw={500}>{selectedInv.vendor} — {formatMoney(selectedInv.amount_incl, selectedInv.currency)}</Text>
@@ -91,8 +94,8 @@ export function ManualMatchPage() {
                 <Text size="sm" c="dimmed">Click an invoice below</Text>
               )}
             </div>
-            <IconLink size={20} color="var(--mantine-color-dimmed)" />
-            <div>
+            <Box visibleFrom="sm"><IconLink size={20} color="var(--mantine-color-dimmed)" /></Box>
+            <div style={{ flex: '1 1 180px' }}>
               <Text size="xs" c="dimmed" tt="uppercase">Selected Transaction</Text>
               {selectedTx ? (
                 <Text size="sm" fw={500}>{selectedTx.counterparty || selectedTx.description} — {formatMoney(selectedTx.amount, selectedTx.original_currency ?? 'EUR')}</Text>
@@ -106,13 +109,14 @@ export function ManualMatchPage() {
             disabled={!selectedInvoice || !selectedTransaction}
             loading={creating}
             onClick={handleMatch}
+            fullWidth
           >
             Create Match
           </Button>
-        </Group>
+        </Stack>
       </Card>
 
-      <Group grow align="flex-start">
+      <SimpleGrid cols={{ base: 1, md: 2 }}>
         {/* Unmatched Invoices */}
         <Card withBorder>
           <Title order={5} mb="xs">
@@ -123,7 +127,8 @@ export function ManualMatchPage() {
             <Text c="dimmed" size="sm">No unmatched invoices for this period.</Text>
           )}
           {invoices.length > 0 && (
-            <Table striped highlightOnHover>
+            <ScrollArea>
+            <Table striped highlightOnHover miw={400}>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Vendor</Table.Th>
@@ -150,6 +155,7 @@ export function ManualMatchPage() {
                 ))}
               </Table.Tbody>
             </Table>
+            </ScrollArea>
           )}
         </Card>
 
@@ -163,7 +169,8 @@ export function ManualMatchPage() {
             <Text c="dimmed" size="sm">No unmatched transactions for this period.</Text>
           )}
           {transactions.length > 0 && (
-            <Table striped highlightOnHover>
+            <ScrollArea>
+            <Table striped highlightOnHover miw={400}>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Counterparty</Table.Th>
@@ -190,9 +197,10 @@ export function ManualMatchPage() {
                 ))}
               </Table.Tbody>
             </Table>
+            </ScrollArea>
           )}
         </Card>
-      </Group>
+      </SimpleGrid>
 
       {invoices.length === 0 && transactions.length === 0 && !loading && (
         <Alert icon={<IconAlertCircle size={16} />} color="green">

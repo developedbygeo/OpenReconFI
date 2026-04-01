@@ -6,6 +6,7 @@ import {
   Button,
   Alert,
   Text,
+  ScrollArea,
 } from '@mantine/core'
 import { IconPlus, IconAlertCircle } from '@tabler/icons-react'
 import { useNavigate } from 'react-router-dom'
@@ -51,7 +52,8 @@ export function VendorListPage() {
       {vendors.length === 0 ? (
         <Text c="dimmed">No vendors yet.</Text>
       ) : (
-        <Table striped highlightOnHover>
+        <ScrollArea>
+        <Table striped highlightOnHover miw={500}>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Name</Table.Th>
@@ -83,6 +85,7 @@ export function VendorListPage() {
             ))}
           </Table.Tbody>
         </Table>
+        </ScrollArea>
       )}
     </>
   )

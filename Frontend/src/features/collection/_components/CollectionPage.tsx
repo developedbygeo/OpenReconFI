@@ -8,6 +8,7 @@ import {
   Stack,
   Text,
   Group,
+  ScrollArea,
 } from '@mantine/core'
 import { IconMailForward, IconAlertCircle } from '@tabler/icons-react'
 import { useListJobsQuery, useTriggerJobMutation } from '../../../store/jobsApi.ts'
@@ -79,7 +80,8 @@ export function CollectionPage() {
       )}
 
       {data && data.items.length > 0 && (
-        <Table striped>
+        <ScrollArea>
+        <Table striped miw={500}>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Started</Table.Th>
@@ -109,6 +111,7 @@ export function CollectionPage() {
             ))}
           </Table.Tbody>
         </Table>
+        </ScrollArea>
       )}
     </Stack>
   )

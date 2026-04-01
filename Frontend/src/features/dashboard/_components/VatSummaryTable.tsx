@@ -2,6 +2,7 @@ import {
   Card,
   Title,
   Table,
+  ScrollArea,
 } from '@mantine/core'
 import type { VATSummary } from '../../../api/types/index.ts'
 
@@ -9,7 +10,8 @@ export function VatSummaryTable({ vat }: { vat: VATSummary }) {
   return (
     <Card withBorder>
       <Title order={4} mb="sm">VAT Summary</Title>
-      <Table striped>
+      <ScrollArea>
+      <Table striped miw={400}>
         <Table.Thead>
           <Table.Tr>
             <Table.Th>VAT Rate</Table.Th>
@@ -29,6 +31,7 @@ export function VatSummaryTable({ vat }: { vat: VATSummary }) {
           ))}
         </Table.Tbody>
       </Table>
+      </ScrollArea>
     </Card>
   )
 }

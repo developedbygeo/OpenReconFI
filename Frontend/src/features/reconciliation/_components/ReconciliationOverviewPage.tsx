@@ -34,13 +34,13 @@ export function ReconciliationOverviewPage() {
 
   return (
     <Stack>
-      <Group justify="space-between">
+      <Group justify="space-between" wrap="wrap">
         <Title order={2}>Reconciliation Overview</Title>
         <MonthPickerInput
           label="Period"
           value={pickerValue}
           onChange={handleChange}
-          w={180}
+          style={{ flex: '0 0 auto', minWidth: 160 }}
         />
       </Group>
 
