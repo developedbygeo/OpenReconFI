@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import Response
@@ -49,13 +50,17 @@ async def generate_report(
         year=body.year,
     )
 
+    slim = body.variant == "summary"
+    suffix = "-summary" if slim else ""
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+
     if body.format == ReportFormat.pdf:
-        content = await generate_pdf(db, label, periods)
-        filename = f"openreconfi-report-{periods[0]}.pdf"
+        content = await generate_pdf(db, label, periods, slim=slim)
+        filename = f"openreconfi-{timestamp}-report{suffix}.pdf"
         media_type = "application/pdf"
     else:
-        content = await generate_excel(db, label, periods)
-        filename = f"openreconfi-report-{periods[0]}.xlsx"
+        content = await generate_excel(db, label, periods, slim=slim)
+        filename = f"openreconfi-{timestamp}-report{suffix}.xlsx"
         media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
     # Upload to Drive in background: /Reports/<Month>/
@@ -106,7 +111,9 @@ async def preview_report(body: ReportRequest) -> ReportMeta:
     )
 
     ext = "pdf" if body.format == ReportFormat.pdf else "xlsx"
-    filename = f"openreconfi-report-{periods[0]}.{ext}"
+    suffix = "-summary" if getattr(body, "variant", "full") == "summary" else ""
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    filename = f"openreconfi-{timestamp}-report{suffix}.{ext}"
 
     return ReportMeta(
         timeframe_label=label,

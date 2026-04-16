@@ -12,6 +12,7 @@ class InvoiceStatus(str, enum.Enum):
     matched = "matched"
     unmatched = "unmatched"
     flagged = "flagged"
+    deferred = "deferred"
 
 
 class TransactionStatus(str, enum.Enum):

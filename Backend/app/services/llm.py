@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -8,6 +9,8 @@ from uuid import UUID
 import re as _re
 
 import anthropic
+
+logger = logging.getLogger(__name__)
 import pdfplumber
 
 
@@ -58,11 +61,17 @@ import re
 def _parse_json(text: str) -> Any:
     """Parse JSON from LLM output, stripping markdown fences if present."""
     text = text.strip()
+    if not text:
+        raise ValueError("LLM returned empty response")
     # Strip ```json ... ``` or ``` ... ```
     fence_match = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
     if fence_match:
         text = fence_match.group(1).strip()
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        logger.error("Failed to parse LLM response as JSON: %s", text[:500])
+        raise
 
 
 EXTRACTION_PROMPT = """\
@@ -104,10 +113,12 @@ async def extract_invoice_from_pdf(pdf_bytes: bytes) -> dict[str, Any]:
         max_tokens=1024,
         messages=[
             {"role": "user", "content": EXTRACTION_PROMPT.format(text=text)},
+            {"role": "assistant", "content": "{"},
         ],
     )
 
-    raw_text = message.content[0].text
+    raw_text = "{" + message.content[0].text
+    logger.info("Invoice extraction LLM response (%d chars): %.200s...", len(raw_text), raw_text)
     data = _parse_json(raw_text)
 
     return {
@@ -203,19 +214,36 @@ async def parse_bank_statement(statement_text: str) -> list[dict[str, Any]]:
     if not statement_text.strip():
         raise ValueError("Empty statement text")
 
+    import httpx
+
     client = _get_client()
     message = await client.messages.create(
         model="claude-sonnet-4-20250514",
-        max_tokens=4096,
+        max_tokens=32768,
+        timeout=httpx.Timeout(timeout=600.0, connect=5.0),
         messages=[
             {
                 "role": "user",
                 "content": STATEMENT_PARSING_PROMPT.format(text=statement_text),
             },
+            {
+                "role": "assistant",
+                "content": "[",
+            },
         ],
     )
 
-    raw_text = message.content[0].text
+    raw_text = "[" + message.content[0].text
+    logger.info("Bank statement LLM response (%d chars, stop=%s): %.200s...",
+                len(raw_text), message.stop_reason, raw_text)
+
+    if message.stop_reason == "max_tokens":
+        logger.warning("Bank statement response was truncated — attempting to repair JSON")
+        # Trim back to the last complete object and close the array
+        last_brace = raw_text.rfind("}")
+        if last_brace != -1:
+            raw_text = raw_text[:last_brace + 1] + "]"
+
     data = _parse_json(raw_text)
 
     if not isinstance(data, list):
@@ -270,10 +298,14 @@ async def match_single_invoice(
                     transactions_json=json.dumps(transactions, default=str),
                 ),
             },
+            {
+                "role": "assistant",
+                "content": "[",
+            },
         ],
     )
 
-    raw_text = message.content[0].text
+    raw_text = "[" + message.content[0].text
     data = _parse_json(raw_text)
 
     if not isinstance(data, list) or len(data) == 0:

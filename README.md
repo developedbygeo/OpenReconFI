@@ -59,19 +59,35 @@ The frontend proxies `/api/*` requests to the backend automatically.
 
 ### Development mode
 
-For frontend hot-reload during development, run the backend via Docker and the frontend via Vite:
+**Option A — Full Docker (no hot reload):**
 
 ```bash
-# Start backend + database
-docker compose up postgres backend --build
-
-# In another terminal — start frontend with HMR
-cd Frontend
-pnpm install
-pnpm run dev
+docker compose up -d --build
 ```
 
-Frontend dev server is at **http://localhost:5173** with hot module replacement.
+Open http://localhost:3000. All three services run in Docker.
+
+**Option B — DB in Docker, BE + FE local (hot reload):**
+
+```bash
+# Start only the database
+docker compose up -d postgres
+
+# Start the backend (from Backend/)
+cd Backend
+uv sync
+uv run alembic upgrade head
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Start the frontend (from Frontend/, in another terminal)
+cd Frontend
+pnpm install
+pnpm dev
+```
+
+Open http://localhost:5173. Vite proxies `/api/*` to the backend on `:8000` with hot module replacement on both sides.
+
+For deploying to a Raspberry Pi or other local server via Portainer, see [DEPLOY_LOCAL.md](DEPLOY_LOCAL.md).
 
 ## Project Structure
 

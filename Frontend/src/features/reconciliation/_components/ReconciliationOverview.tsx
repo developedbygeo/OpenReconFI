@@ -18,10 +18,11 @@ import {
   ScrollArea,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
-import { IconCheck, IconAlertTriangle, IconX } from '@tabler/icons-react'
+import { IconCheck, IconAlertTriangle, IconX, IconArrowBack, IconClock } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import { useNavigate } from 'react-router-dom'
-import { useReconciliationOverviewQuery, useDismissTransactionMutation, useUpdateTransactionMutation } from '../../../store/reconciliationApi.ts'
+import { useReconciliationOverviewQuery, useDismissTransactionMutation, useUndismissTransactionMutation, useUpdateTransactionMutation } from '../../../store/reconciliationApi.ts'
+import { useUpdateInvoiceMutation } from '../../../store/invoicesApi.ts'
 import { useListCategoriesQuery } from '../../../store/categoriesApi.ts'
 import type { UnmatchedTransactionSummary } from '../../../api/types/index.ts'
 import { formatMoney } from '../../../utils/format.ts'
@@ -33,7 +34,18 @@ export function ReconciliationOverview({ period }: { period: string }) {
     { skip: !period },
   )
   const [dismissTx] = useDismissTransactionMutation()
+  const [undismissTx] = useUndismissTransactionMutation()
   const [updateTx] = useUpdateTransactionMutation()
+  const [updateInvoice] = useUpdateInvoiceMutation()
+
+  const handleDeferInvoice = async (invoiceId: string) => {
+    try {
+      await updateInvoice({ invoiceId, body: { status: 'deferred' } }).unwrap()
+      notifications.show({ title: 'Deferred', message: 'Invoice deferred to next month.', color: 'blue' })
+    } catch {
+      notifications.show({ title: 'Error', message: 'Could not defer invoice.', color: 'red' })
+    }
+  }
   const { data: categoriesData } = useListCategoriesQuery()
   const categoryNames = categoriesData?.map((c) => c.name) ?? []
 
@@ -46,6 +58,15 @@ export function ReconciliationOverview({ period }: { period: string }) {
       await updateTx({ transactionId: txId, body: { category } }).unwrap()
     } catch {
       notifications.show({ title: 'Update failed', message: 'Could not update category.', color: 'red' })
+    }
+  }
+
+  const handleUndismiss = async (txId: string) => {
+    try {
+      await undismissTx(txId).unwrap()
+      notifications.show({ title: 'Restored', message: 'Transaction restored to unmatched.', color: 'green' })
+    } catch {
+      notifications.show({ title: 'Error', message: 'Could not restore transaction.', color: 'red' })
     }
   }
 
@@ -153,20 +174,28 @@ export function ReconciliationOverview({ period }: { period: string }) {
                 <Table.Th>Date</Table.Th>
                 <Table.Th>Category</Table.Th>
                 <Table.Th ta="right">Amount</Table.Th>
+                <Table.Th />
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {data.unmatched_invoice_list.map((inv) => (
-                <Table.Tr
-                  key={inv.id}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => navigate(`/invoices/${inv.id}`)}
-                >
-                  <Table.Td fw={500}>{inv.vendor}</Table.Td>
+                <Table.Tr key={inv.id}>
+                  <Table.Td fw={500} style={{ cursor: 'pointer' }} onClick={() => navigate(`/invoices/${inv.id}`)}>{inv.vendor}</Table.Td>
                   <Table.Td>{inv.invoice_number}</Table.Td>
                   <Table.Td>{inv.invoice_date}</Table.Td>
                   <Table.Td>{inv.category ?? '—'}</Table.Td>
                   <Table.Td ta="right">{formatMoney(inv.amount_incl, inv.currency)}</Table.Td>
+                  <Table.Td>
+                    <Button
+                      size="compact-xs"
+                      variant="light"
+                      color="blue"
+                      leftSection={<IconClock size={12} />}
+                      onClick={() => handleDeferInvoice(inv.id)}
+                    >
+                      Defer
+                    </Button>
+                  </Table.Td>
                 </Table.Tr>
               ))}
             </Table.Tbody>
@@ -217,6 +246,50 @@ export function ReconciliationOverview({ period }: { period: string }) {
                       onClick={() => openDismiss(tx)}
                     >
                       Dismiss
+                    </Button>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+          </ScrollArea>
+        </Card>
+      )}
+
+      {data.dismissed_transaction_list.length > 0 && (
+        <Card withBorder>
+          <Title order={5} mb="xs">Dismissed Transactions</Title>
+          <ScrollArea>
+          <Table striped highlightOnHover miw={600}>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Counterparty</Table.Th>
+                <Table.Th>Description</Table.Th>
+                <Table.Th>Date</Table.Th>
+                <Table.Th>Category</Table.Th>
+                <Table.Th>Note</Table.Th>
+                <Table.Th ta="right">Amount</Table.Th>
+                <Table.Th />
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {data.dismissed_transaction_list.map((tx) => (
+                <Table.Tr key={tx.id}>
+                  <Table.Td fw={500}>{tx.counterparty || '—'}</Table.Td>
+                  <Table.Td>{tx.description}</Table.Td>
+                  <Table.Td>{tx.tx_date}</Table.Td>
+                  <Table.Td>{tx.category ?? '—'}</Table.Td>
+                  <Table.Td><Text size="xs" c="dimmed">{tx.note ?? '—'}</Text></Table.Td>
+                  <Table.Td ta="right">{formatMoney(tx.amount)}</Table.Td>
+                  <Table.Td>
+                    <Button
+                      size="compact-xs"
+                      variant="light"
+                      color="blue"
+                      leftSection={<IconArrowBack size={12} />}
+                      onClick={() => handleUndismiss(tx.id)}
+                    >
+                      Undo
                     </Button>
                   </Table.Td>
                 </Table.Tr>

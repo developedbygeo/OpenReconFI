@@ -280,7 +280,7 @@ async def run_matching(
 
     # --- Fetch unmatched invoices ---
     inv_query = select(Invoice).where(
-        Invoice.status.in_([InvoiceStatus.pending, InvoiceStatus.unmatched])
+        Invoice.status.in_([InvoiceStatus.pending, InvoiceStatus.unmatched, InvoiceStatus.deferred])
     )
     if period:
         inv_query = inv_query.where(Invoice.period == period)

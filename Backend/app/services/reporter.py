@@ -178,10 +178,12 @@ async def _gather_report_data(db: AsyncSession, periods: list[str]) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _render_html(label: str, data: dict) -> str:
+def _render_html(label: str, data: dict, slim: bool = False) -> str:
     """Build the HTML string for the PDF report."""
     today = date.today().strftime("%Y-%m-%d")
     s = data["summary"]
+
+    report_title = "OpenReconFi — Summary Report" if slim else "OpenReconFi — Financial Report"
 
     html_parts = [
         f"""<!DOCTYPE html>
@@ -204,13 +206,17 @@ def _render_html(label: str, data: dict) -> str:
 </head><body>
 
 <div class="cover">
-  <h1>OpenReconFi — Financial Report</h1>
+  <h1>{report_title}</h1>
   <p><strong>{label}</strong></p>
   <p>Generated {today}</p>
 </div>
 
 <div class="page-break"></div>
+""",
+    ]
 
+    if not slim:
+        html_parts.append(f"""
 <h2>Summary</h2>
 <table>
   <tr><th>Metric</th><th>Value</th></tr>
@@ -222,57 +228,66 @@ def _render_html(label: str, data: dict) -> str:
   <tr><td>Dismissed (no invoice)</td><td class="num">{s['no_invoice_count']} (&euro;{_fmt(s['no_invoice_total'])})</td></tr>
   <tr><td>Withholdings</td><td class="num">{s['withholding_count']} (&euro;{_fmt(s['withholding_total'])})</td></tr>
   <tr><td>Unmatched expenses</td><td class="num">{s['unmatched_count']} (&euro;{_fmt(s['unmatched_total'])})</td></tr>
-</table>""",
-    ]
+</table>""")
 
     # Matched Expenses
     if data["matches"]:
-        html_parts.append("""
+        if slim:
+            html_parts.append("""
 <div class="landscape">
 <h2>Matched Expenses</h2>
 <table>
   <tr>
-    <th>Date</th><th>EUR Amount</th><th>FX Amount</th><th>Counterparty</th>
+    <th>Tx Date</th><th>Inv Date</th><th>Amount</th><th>FX Amount</th>
+    <th>Vendor</th><th>Invoice #</th><th>Inv Amount</th><th>Currency</th>
+    <th>Category</th>
+  </tr>""")
+            for m in data["matches"]:
+                tx = m.transaction
+                inv = m.invoice
+                fx_amount = f"{_fmt(tx.original_amount)} {tx.original_currency}" if tx.original_amount else ""
+                html_parts.append(
+                    f"  <tr><td>{tx.tx_date}</td>"
+                    f"<td>{inv.invoice_date}</td>"
+                    f'<td class="num">&euro;{_fmt(tx.amount)}</td>'
+                    f'<td class="num">{fx_amount}</td>'
+                    f"<td>{inv.vendor}</td>"
+                    f"<td>{inv.invoice_number}</td>"
+                    f'<td class="num">{_fmt(inv.amount_incl)}</td>'
+                    f"<td>{inv.currency}</td>"
+                    f"<td>{inv.category or ''}</td></tr>"
+                )
+            html_parts.append("</table></div>")
+        else:
+            html_parts.append("""
+<div class="landscape">
+<h2>Matched Expenses</h2>
+<table>
+  <tr>
+    <th>Tx Date</th><th>Inv Date</th><th>EUR Amount</th><th>FX Amount</th><th>Counterparty</th>
     <th>Vendor</th><th>Invoice #</th><th>Inv Amount</th><th>Currency</th>
     <th>File</th><th>Category</th><th>Confidence</th><th>Confirmed By</th>
   </tr>""")
-        for m in data["matches"]:
-            tx = m.transaction
-            inv = m.invoice
-            fx_amount = f"{_fmt(tx.original_amount)} {tx.original_currency}" if tx.original_amount else ""
-            html_parts.append(
-                f"  <tr><td>{tx.tx_date}</td>"
-                f'<td class="num">&euro;{_fmt(tx.amount)}</td>'
-                f'<td class="num">{fx_amount}</td>'
-                f"<td>{tx.counterparty}</td>"
-                f"<td>{inv.vendor}</td>"
-                f"<td>{inv.invoice_number}</td>"
-                f'<td class="num">{_fmt(inv.amount_incl)}</td>'
-                f"<td>{inv.currency}</td>"
-                f"<td>{_invoice_filename(inv)}</td>"
-                f"<td>{inv.category or ''}</td>"
-                f'<td class="num">{_fmt(m.confidence)}</td>'
-                f"<td>{m.confirmed_by.value}</td></tr>"
-            )
-        html_parts.append("</table></div>")
-
-    # Dismissed (no_invoice)
-    if data["no_invoice_txs"]:
-        html_parts.append("""
-<div class="landscape">
-<h2>Dismissed (No Invoice Required)</h2>
-<table>
-  <tr><th>Date</th><th>Amount</th><th>Counterparty</th><th>Description</th><th>Category</th><th>Note</th></tr>""")
-        for tx in data["no_invoice_txs"]:
-            html_parts.append(
-                f"  <tr><td>{tx.tx_date}</td>"
-                f'<td class="num">&euro;{_fmt(tx.amount)}</td>'
-                f"<td>{tx.counterparty}</td>"
-                f"<td>{tx.description}</td>"
-                f"<td>{tx.category or ''}</td>"
-                f"<td>{tx.note or ''}</td></tr>"
-            )
-        html_parts.append("</table></div>")
+            for m in data["matches"]:
+                tx = m.transaction
+                inv = m.invoice
+                fx_amount = f"{_fmt(tx.original_amount)} {tx.original_currency}" if tx.original_amount else ""
+                html_parts.append(
+                    f"  <tr><td>{tx.tx_date}</td>"
+                    f"<td>{inv.invoice_date}</td>"
+                    f'<td class="num">&euro;{_fmt(tx.amount)}</td>'
+                    f'<td class="num">{fx_amount}</td>'
+                    f"<td>{tx.counterparty}</td>"
+                    f"<td>{inv.vendor}</td>"
+                    f"<td>{inv.invoice_number}</td>"
+                    f'<td class="num">{_fmt(inv.amount_incl)}</td>'
+                    f"<td>{inv.currency}</td>"
+                    f"<td>{_invoice_filename(inv)}</td>"
+                    f"<td>{inv.category or ''}</td>"
+                    f'<td class="num">{_fmt(m.confidence)}</td>'
+                    f"<td>{m.confirmed_by.value}</td></tr>"
+                )
+            html_parts.append("</table></div>")
 
     # Withholdings
     if data["withholding_txs"]:
@@ -289,6 +304,38 @@ def _render_html(label: str, data: dict) -> str:
             )
         html_parts.append("</table>")
 
+    # Dismissed (no_invoice)
+    if data["no_invoice_txs"]:
+        if slim:
+            html_parts.append("""
+<h2>Dismissed Expenses</h2>
+<table>
+  <tr><th>Date</th><th>Amount</th><th>Counterparty</th><th>Category</th></tr>""")
+            for tx in data["no_invoice_txs"]:
+                html_parts.append(
+                    f"  <tr><td>{tx.tx_date}</td>"
+                    f'<td class="num">&euro;{_fmt(tx.amount)}</td>'
+                    f"<td>{tx.counterparty}</td>"
+                    f"<td>{tx.category or ''}</td></tr>"
+                )
+            html_parts.append("</table>")
+        else:
+            html_parts.append("""
+<div class="landscape">
+<h2>Dismissed (No Invoice Required)</h2>
+<table>
+  <tr><th>Date</th><th>Amount</th><th>Counterparty</th><th>Description</th><th>Category</th><th>Note</th></tr>""")
+            for tx in data["no_invoice_txs"]:
+                html_parts.append(
+                    f"  <tr><td>{tx.tx_date}</td>"
+                    f'<td class="num">&euro;{_fmt(tx.amount)}</td>'
+                    f"<td>{tx.counterparty}</td>"
+                    f"<td>{tx.description}</td>"
+                    f"<td>{tx.category or ''}</td>"
+                    f"<td>{tx.note or ''}</td></tr>"
+                )
+            html_parts.append("</table></div>")
+
     # Earnings (credits)
     if data["earnings_txs"]:
         html_parts.append("""
@@ -304,8 +351,8 @@ def _render_html(label: str, data: dict) -> str:
             )
         html_parts.append("</table>")
 
-    # Unmatched Expenses
-    if data["unmatched_txs"]:
+    # Unmatched Expenses (full report only)
+    if not slim and data["unmatched_txs"]:
         html_parts.append("""
 <h2>Unmatched Expenses</h2>
 <table>
@@ -323,10 +370,10 @@ def _render_html(label: str, data: dict) -> str:
     return "\n".join(html_parts)
 
 
-async def generate_pdf(db: AsyncSession, label: str, periods: list[str]) -> bytes:
+async def generate_pdf(db: AsyncSession, label: str, periods: list[str], slim: bool = False) -> bytes:
     """Generate a PDF report for the given periods."""
     data = await _gather_report_data(db, periods)
-    html_str = _render_html(label, data)
+    html_str = _render_html(label, data, slim=slim)
     from weasyprint import HTML  # lazy import — requires system libs (pango, cairo)
 
     pdf_bytes = HTML(string=html_str).write_pdf()
@@ -343,41 +390,62 @@ def _write_header(ws, headers: list[str]) -> None:
         cell.alignment = Alignment(horizontal="center")
 
 
-async def generate_excel(db: AsyncSession, label: str, periods: list[str]) -> bytes:
+async def generate_excel(db: AsyncSession, label: str, periods: list[str], slim: bool = False) -> bytes:
     """Generate an Excel report for the given periods."""
     data = await _gather_report_data(db, periods)
     wb = openpyxl.Workbook()
     s = data["summary"]
 
-    # --- Summary sheet ---
+    # --- Summary sheet (full only) ---
     ws = wb.active
-    ws.title = "Summary"
-    _write_header(ws, ["Metric", "Value"])
-    rows = [
-        ("Total debits", float(s["total_debits"])),
-        ("Total credits", float(s["total_credits"])),
-        ("Debit transactions", s["debit_count"]),
-        ("Credit transactions", s["credit_count"]),
-        ("Matched expenses", s["matched_count"]),
-        ("Matched total", float(s["matched_total"])),
-        ("Dismissed (no invoice)", s["no_invoice_count"]),
-        ("Dismissed total", float(s["no_invoice_total"])),
-        ("Withholdings", s["withholding_count"]),
-        ("Withholding total", float(s["withholding_total"])),
-        ("Unmatched expenses", s["unmatched_count"]),
-        ("Unmatched total", float(s["unmatched_total"])),
-    ]
-    for i, (metric, val) in enumerate(rows, 2):
-        ws.cell(row=i, column=1, value=metric)
-        ws.cell(row=i, column=2, value=val)
-    ws.column_dimensions["A"].width = 25
-    ws.column_dimensions["B"].width = 18
+    if slim:
+        ws.title = "Matched Expenses"
+        if data["matches"]:
+            _write_header(ws, [
+                "Tx Date", "Inv Date", "Amount", "FX Amount", "FX Currency",
+                "Vendor", "Invoice #", "Inv Amount", "Currency", "Category",
+            ])
+            for i, m in enumerate(data["matches"], 2):
+                tx = m.transaction
+                inv = m.invoice
+                ws.cell(row=i, column=1, value=str(tx.tx_date))
+                ws.cell(row=i, column=2, value=str(inv.invoice_date))
+                ws.cell(row=i, column=3, value=float(tx.amount))
+                ws.cell(row=i, column=4, value=float(tx.original_amount) if tx.original_amount else None)
+                ws.cell(row=i, column=5, value=tx.original_currency or "")
+                ws.cell(row=i, column=6, value=inv.vendor)
+                ws.cell(row=i, column=7, value=inv.invoice_number)
+                ws.cell(row=i, column=8, value=float(inv.amount_incl))
+                ws.cell(row=i, column=9, value=inv.currency)
+                ws.cell(row=i, column=10, value=inv.category or "")
+    else:
+        ws.title = "Summary"
+        _write_header(ws, ["Metric", "Value"])
+        rows = [
+            ("Total debits", float(s["total_debits"])),
+            ("Total credits", float(s["total_credits"])),
+            ("Debit transactions", s["debit_count"]),
+            ("Credit transactions", s["credit_count"]),
+            ("Matched expenses", s["matched_count"]),
+            ("Matched total", float(s["matched_total"])),
+            ("Dismissed (no invoice)", s["no_invoice_count"]),
+            ("Dismissed total", float(s["no_invoice_total"])),
+            ("Withholdings", s["withholding_count"]),
+            ("Withholding total", float(s["withholding_total"])),
+            ("Unmatched expenses", s["unmatched_count"]),
+            ("Unmatched total", float(s["unmatched_total"])),
+        ]
+        for i, (metric, val) in enumerate(rows, 2):
+            ws.cell(row=i, column=1, value=metric)
+            ws.cell(row=i, column=2, value=val)
+        ws.column_dimensions["A"].width = 25
+        ws.column_dimensions["B"].width = 18
 
-    # --- Matched Expenses sheet ---
-    if data["matches"]:
+    # --- Matched Expenses sheet (full only) ---
+    if not slim and data["matches"]:
         ws_m = wb.create_sheet("Matched Expenses")
         _write_header(ws_m, [
-            "Date", "EUR Amount", "FX Amount", "FX Currency", "Counterparty",
+            "Tx Date", "Inv Date", "EUR Amount", "FX Amount", "FX Currency", "Counterparty",
             "Vendor", "Invoice #", "Inv Amount", "Inv Currency",
             "File", "Category", "Confidence", "Confirmed By",
         ])
@@ -385,30 +453,19 @@ async def generate_excel(db: AsyncSession, label: str, periods: list[str]) -> by
             tx = m.transaction
             inv = m.invoice
             ws_m.cell(row=i, column=1, value=str(tx.tx_date))
-            ws_m.cell(row=i, column=2, value=float(tx.amount))
-            ws_m.cell(row=i, column=3, value=float(tx.original_amount) if tx.original_amount else None)
-            ws_m.cell(row=i, column=4, value=tx.original_currency or "")
-            ws_m.cell(row=i, column=5, value=tx.counterparty)
-            ws_m.cell(row=i, column=6, value=inv.vendor)
-            ws_m.cell(row=i, column=7, value=inv.invoice_number)
-            ws_m.cell(row=i, column=8, value=float(inv.amount_incl))
-            ws_m.cell(row=i, column=9, value=inv.currency)
-            ws_m.cell(row=i, column=10, value=_invoice_filename(inv))
-            ws_m.cell(row=i, column=11, value=inv.category or "")
-            ws_m.cell(row=i, column=12, value=float(m.confidence))
-            ws_m.cell(row=i, column=13, value=m.confirmed_by.value)
-
-    # --- Dismissed sheet ---
-    if data["no_invoice_txs"]:
-        ws_d = wb.create_sheet("Dismissed")
-        _write_header(ws_d, ["Date", "Amount", "Counterparty", "Description", "Category", "Note"])
-        for i, tx in enumerate(data["no_invoice_txs"], 2):
-            ws_d.cell(row=i, column=1, value=str(tx.tx_date))
-            ws_d.cell(row=i, column=2, value=float(tx.amount))
-            ws_d.cell(row=i, column=3, value=tx.counterparty)
-            ws_d.cell(row=i, column=4, value=tx.description)
-            ws_d.cell(row=i, column=5, value=tx.category or "")
-            ws_d.cell(row=i, column=6, value=tx.note or "")
+            ws_m.cell(row=i, column=2, value=str(inv.invoice_date))
+            ws_m.cell(row=i, column=3, value=float(tx.amount))
+            ws_m.cell(row=i, column=4, value=float(tx.original_amount) if tx.original_amount else None)
+            ws_m.cell(row=i, column=5, value=tx.original_currency or "")
+            ws_m.cell(row=i, column=6, value=tx.counterparty)
+            ws_m.cell(row=i, column=7, value=inv.vendor)
+            ws_m.cell(row=i, column=8, value=inv.invoice_number)
+            ws_m.cell(row=i, column=9, value=float(inv.amount_incl))
+            ws_m.cell(row=i, column=10, value=inv.currency)
+            ws_m.cell(row=i, column=11, value=_invoice_filename(inv))
+            ws_m.cell(row=i, column=12, value=inv.category or "")
+            ws_m.cell(row=i, column=13, value=float(m.confidence))
+            ws_m.cell(row=i, column=14, value=m.confirmed_by.value)
 
     # --- Withholdings sheet ---
     if data["withholding_txs"]:
@@ -420,6 +477,26 @@ async def generate_excel(db: AsyncSession, label: str, periods: list[str]) -> by
             ws_w.cell(row=i, column=3, value=tx.counterparty)
             ws_w.cell(row=i, column=4, value=tx.description)
 
+    # --- Dismissed sheet ---
+    if data["no_invoice_txs"]:
+        ws_d = wb.create_sheet("Dismissed")
+        if slim:
+            _write_header(ws_d, ["Date", "Amount", "Counterparty", "Category"])
+            for i, tx in enumerate(data["no_invoice_txs"], 2):
+                ws_d.cell(row=i, column=1, value=str(tx.tx_date))
+                ws_d.cell(row=i, column=2, value=float(tx.amount))
+                ws_d.cell(row=i, column=3, value=tx.counterparty)
+                ws_d.cell(row=i, column=4, value=tx.category or "")
+        else:
+            _write_header(ws_d, ["Date", "Amount", "Counterparty", "Description", "Category", "Note"])
+            for i, tx in enumerate(data["no_invoice_txs"], 2):
+                ws_d.cell(row=i, column=1, value=str(tx.tx_date))
+                ws_d.cell(row=i, column=2, value=float(tx.amount))
+                ws_d.cell(row=i, column=3, value=tx.counterparty)
+                ws_d.cell(row=i, column=4, value=tx.description)
+                ws_d.cell(row=i, column=5, value=tx.category or "")
+                ws_d.cell(row=i, column=6, value=tx.note or "")
+
     # --- Earnings sheet ---
     if data["earnings_txs"]:
         ws_e = wb.create_sheet("Earnings")
@@ -430,8 +507,8 @@ async def generate_excel(db: AsyncSession, label: str, periods: list[str]) -> by
             ws_e.cell(row=i, column=3, value=tx.counterparty)
             ws_e.cell(row=i, column=4, value=tx.description)
 
-    # --- Unmatched Expenses sheet ---
-    if data["unmatched_txs"]:
+    # --- Unmatched Expenses sheet (full only) ---
+    if not slim and data["unmatched_txs"]:
         ws_u = wb.create_sheet("Unmatched Expenses")
         _write_header(ws_u, ["Date", "Amount", "Counterparty", "Description"])
         for i, tx in enumerate(data["unmatched_txs"], 2):

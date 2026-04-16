@@ -59,7 +59,7 @@ export function MatchTable({
             >
               <Table.Td>
                 <Text size="sm" fw={500}>{inv?.vendor ?? match.invoice_id.slice(0, 8)}</Text>
-                {inv && <Text size="xs" c="dimmed">{formatMoney(inv.amount_incl, inv.currency)}</Text>}
+                {inv && <Text size="xs" c="dimmed">{formatMoney(inv.amount_incl, inv.currency)} &middot; {inv.invoice_date}</Text>}
               </Table.Td>
               <Table.Td>
                 <Text size="sm" fw={500}>{tx?.counterparty ?? match.transaction_id.slice(0, 8)}</Text>
@@ -90,8 +90,8 @@ export function MatchTable({
                 {isException && <Badge color="orange" mt={4}>Exception</Badge>}
               </Table.Td>
               <Table.Td>
-                {match.confirmed_by !== 'user' && (
-                  <Group gap="xs">
+                <Group gap="xs">
+                    {match.confirmed_by !== 'user' && (
                     <Button
                       size="xs"
                       color="green"
@@ -101,6 +101,7 @@ export function MatchTable({
                     >
                       Confirm
                     </Button>
+                    )}
                     <Button
                       size="xs"
                       color="red"
@@ -120,7 +121,6 @@ export function MatchTable({
                       Reassign
                     </Button>
                   </Group>
-                )}
               </Table.Td>
             </Table.Tr>
           )

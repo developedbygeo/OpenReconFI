@@ -6,8 +6,9 @@ import {
   Button,
   Group,
   SimpleGrid,
+  Menu,
 } from '@mantine/core'
-import { IconDownload } from '@tabler/icons-react'
+import { IconDownload, IconChevronDown, IconFileReport, IconFileSpreadsheet } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import { usePreviewReportMutation } from '../../store/reportsApi.ts'
 import type { TimeframeType, ReportFormat } from '../../api/types/index.ts'
@@ -71,18 +72,20 @@ export function ReportsPage() {
     }
   }
 
-  const handleDownload = async () => {
+  const handleDownload = async (variant: 'full' | 'summary') => {
     setDownloading(true)
     try {
       const response = await fetch('/api/reports/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildRequest()),
+        body: JSON.stringify({ ...buildRequest(), variant }),
       })
       if (!response.ok) throw new Error('Download failed')
 
       const blob = await response.blob()
-      const filename = preview?.filename ?? `report.${format === 'pdf' ? 'pdf' : 'xlsx'}`
+      const disposition = response.headers.get('Content-Disposition') ?? ''
+      const match = disposition.match(/filename="(.+)"/)
+      const filename = match?.[1] ?? `openreconfi-report.${format === 'pdf' ? 'pdf' : 'xlsx'}`
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -127,13 +130,31 @@ export function ReportsPage() {
         <Button variant="light" onClick={handlePreview}>
           Preview
         </Button>
-        <Button
-          leftSection={<IconDownload size={16} />}
-          onClick={handleDownload}
-          loading={downloading}
-        >
-          Download
-        </Button>
+        <Menu shadow="md" width={200}>
+          <Menu.Target>
+            <Button
+              leftSection={<IconDownload size={16} />}
+              rightSection={<IconChevronDown size={14} />}
+              loading={downloading}
+            >
+              Download
+            </Button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Item
+              leftSection={<IconFileReport size={16} />}
+              onClick={() => handleDownload('full')}
+            >
+              Full Report
+            </Menu.Item>
+            <Menu.Item
+              leftSection={<IconFileSpreadsheet size={16} />}
+              onClick={() => handleDownload('summary')}
+            >
+              Summary Report
+            </Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
       </Group>
 
       {preview && <ReportPreview preview={preview} />}

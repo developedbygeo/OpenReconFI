@@ -53,15 +53,27 @@ async def upload_statement(
     # Derive period from first transaction date
     period = parsed[0]["tx_date"].strftime("%Y-%m")
 
-    # Store transactions
+    # Store transactions (skip duplicates by date + amount + description)
+    skipped = 0
     for tx_data in parsed:
+        dup = await db.execute(
+            select(Transaction).where(
+                Transaction.tx_date == tx_data["tx_date"],
+                Transaction.amount == tx_data["amount"],
+                Transaction.description == tx_data["description"],
+            )
+        )
+        if dup.scalars().first():
+            skipped += 1
+            continue
+
         # Detect withholdings by description as fallback
         desc_upper = tx_data["description"].upper()
         is_withholding = tx_data.get("withholding") or "ΕΝΑΝΤΙ ΚΕΡΔ" in desc_upper or "ENANTI KERD" in desc_upper
 
         if is_withholding:
             status = TransactionStatus.withholding
-        elif tx_data.get("no_invoice"):
+        elif tx_data.get("no_invoice") or tx_data["amount"] > 0:
             status = TransactionStatus.no_invoice
         else:
             status = TransactionStatus.unmatched
@@ -92,7 +104,8 @@ async def upload_statement(
     await db.commit()
 
     return StatementUploadResponse(
-        transactions_parsed=len(parsed),
+        transactions_parsed=len(parsed) - skipped,
+        duplicates_skipped=skipped,
         period=period,
     )
 
@@ -114,10 +127,12 @@ async def period_overview(
     )
     invoices = inv_result.scalars().all()
 
-    total_invoices = len(invoices)
-    matched_invoices = sum(1 for i in invoices if i.status == InvoiceStatus.matched)
-    unmatched_invoices_list = [i for i in invoices if i.status != InvoiceStatus.matched]
-    total_invoiced_incl = sum(i.amount_incl for i in invoices)
+    active_invoices = [i for i in invoices if i.status != InvoiceStatus.deferred]
+    total_invoices = len(active_invoices)
+    matched_invoices = sum(1 for i in active_invoices if i.status == InvoiceStatus.matched)
+    deferred_invoices_list = [i for i in invoices if i.status == InvoiceStatus.deferred]
+    unmatched_invoices_list = [i for i in active_invoices if i.status != InvoiceStatus.matched]
+    total_invoiced_incl = sum(i.amount_incl for i in active_invoices)
 
     # All transactions for the period
     tx_result = await db.execute(
@@ -190,6 +205,18 @@ async def period_overview(
             )
             for t in unmatched_txs
         ],
+        dismissed_transaction_list=[
+            UnmatchedTransactionSummary(
+                id=t.id,
+                counterparty=t.counterparty,
+                description=t.description,
+                amount=t.amount,
+                tx_date=str(t.tx_date),
+                category=t.category,
+                note=t.note,
+            )
+            for t in no_invoice_txs
+        ],
     )
 
 
@@ -234,6 +261,29 @@ async def dismiss_transaction(
     tx.status = TransactionStatus.no_invoice
     if body.note:
         tx.note = body.note
+    await db.commit()
+    await db.refresh(tx)
+    return TransactionRead.model_validate(tx)
+
+
+@router.post(
+    "/transactions/{transaction_id}/undismiss",
+    response_model=TransactionRead,
+)
+async def undismiss_transaction(
+    transaction_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> TransactionRead:
+    """Undo a dismiss — set transaction back to unmatched."""
+    result = await db.execute(
+        select(Transaction).where(Transaction.id == transaction_id)
+    )
+    tx = result.scalar_one_or_none()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    tx.status = TransactionStatus.unmatched
+    tx.note = None
     await db.commit()
     await db.refresh(tx)
     return TransactionRead.model_validate(tx)
@@ -336,15 +386,13 @@ async def create_match(
     if invoice.status == InvoiceStatus.matched:
         raise HTTPException(status_code=409, detail="Invoice is already matched")
 
-    # Validate transaction exists and is unmatched
+    # Validate transaction exists (allow already-matched for multi-invoice transactions)
     tx_result = await db.execute(
         select(Transaction).where(Transaction.id == body.transaction_id)
     )
     transaction = tx_result.scalar_one_or_none()
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    if transaction.status == TransactionStatus.matched:
-        raise HTTPException(status_code=409, detail="Transaction is already matched")
 
     # Create the match
     match = Match(

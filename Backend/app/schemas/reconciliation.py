@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 class StatementUploadResponse(BaseModel):
     transactions_parsed: int
+    duplicates_skipped: int = 0
     period: str
 
 
@@ -42,6 +43,7 @@ class UnmatchedTransactionSummary(BaseModel):
     amount: Decimal
     tx_date: str
     category: Optional[str] = None
+    note: Optional[str] = None
 
 
 class PeriodReconciliation(BaseModel):
@@ -78,3 +80,4 @@ class PeriodReconciliation(BaseModel):
     # Detail
     unmatched_invoice_list: list[UnmatchedInvoiceSummary]
     unmatched_transaction_list: list[UnmatchedTransactionSummary]
+    dismissed_transaction_list: list[UnmatchedTransactionSummary]

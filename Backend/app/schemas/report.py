@@ -8,6 +8,7 @@ from app.models.enums import ReportFormat, TimeframeType
 class ReportRequest(BaseModel):
     timeframe: TimeframeType
     format: ReportFormat
+    variant: str = "full"  # "full" or "summary"
     period: Optional[str] = None
     quarter: Optional[int] = None
     year: Optional[int] = None

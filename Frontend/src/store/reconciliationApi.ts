@@ -20,6 +20,7 @@ const URL = {
   TRANSACTIONS: '/reconciliation/transactions',
   TRANSACTION: (id: string) => `/reconciliation/transactions/${id}`,
   TRANSACTION_DISMISS: (id: string) => `/reconciliation/transactions/${id}/dismiss`,
+  TRANSACTION_UNDISMISS: (id: string) => `/reconciliation/transactions/${id}/undismiss`,
   MATCH_TRIGGER: '/reconciliation/match',
   MATCHES: '/reconciliation/matches',
   MATCH: (id: string) => `/reconciliation/matches/${id}`,
@@ -61,6 +62,14 @@ const reconciliationApi = api.injectEndpoints({
         url: URL.TRANSACTION_DISMISS(transactionId),
         method: 'POST',
         body,
+      }),
+      invalidatesTags: [TAG.TRANSACTIONS, TAG.MATCHES],
+    }),
+
+    undismissTransaction: build.mutation<TransactionRead, string>({
+      query: (transactionId) => ({
+        url: URL.TRANSACTION_UNDISMISS(transactionId),
+        method: 'POST',
       }),
       invalidatesTags: [TAG.TRANSACTIONS, TAG.MATCHES],
     }),
@@ -132,6 +141,7 @@ export const {
   useListTransactionsQuery,
   useUpdateTransactionMutation,
   useDismissTransactionMutation,
+  useUndismissTransactionMutation,
   useTriggerMatchingMutation,
   useListMatchesQuery,
   useCreateMatchMutation,

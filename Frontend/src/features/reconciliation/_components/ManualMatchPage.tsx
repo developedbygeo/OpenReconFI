@@ -33,6 +33,12 @@ function toYYYYMM(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+function prevMonth(period: string): string {
+  const [y, m] = period.split('-').map(Number)
+  const d = new Date(y, m - 2, 1)
+  return toYYYYMM(d)
+}
+
 export function ManualMatchPage() {
   const [pickerValue, setPickerValue] = useState<string | null>(null)
   const period = pickerValue ? toYYYYMM(new Date(pickerValue)) : toYYYYMM(lastMonth())
@@ -40,12 +46,42 @@ export function ManualMatchPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null)
   const [selectedTransaction, setSelectedTransaction] = useState<string | null>(null)
 
-  const { data: invoiceData, isLoading: loadingInv } = useListInvoicesQuery(
-    { status: 'unmatched', limit: 100 },
-  )
-  const { data: txData, isLoading: loadingTx } = useListTransactionsQuery(
+  const prev = prevMonth(period)
+  const { data: unmatchedInvData, isLoading: loadingUnmatched } = useListInvoicesQuery(
     { period, status: 'unmatched', limit: 100 },
   )
+  const { data: pendingInvData, isLoading: loadingPending } = useListInvoicesQuery(
+    { period, status: 'pending', limit: 100 },
+  )
+  // Also fetch unmatched invoices from previous month (cross-period matches)
+  const { data: prevUnmatchedInvData, isLoading: loadingPrevUnmatched } = useListInvoicesQuery(
+    { period: prev, status: 'unmatched', limit: 100 },
+  )
+  const { data: prevPendingInvData, isLoading: loadingPrevPending } = useListInvoicesQuery(
+    { period: prev, status: 'pending', limit: 100 },
+  )
+  const invoiceData = {
+    items: [
+      ...(unmatchedInvData?.items ?? []),
+      ...(pendingInvData?.items ?? []),
+      ...(prevUnmatchedInvData?.items ?? []),
+      ...(prevPendingInvData?.items ?? []),
+    ],
+    total: (unmatchedInvData?.total ?? 0) + (pendingInvData?.total ?? 0) +
+      (prevUnmatchedInvData?.total ?? 0) + (prevPendingInvData?.total ?? 0),
+  }
+  const loadingInv = loadingUnmatched || loadingPending || loadingPrevUnmatched || loadingPrevPending
+  const { data: unmatchedTxData, isLoading: loadingUnmatchedTx } = useListTransactionsQuery(
+    { period, status: 'unmatched', limit: 100 },
+  )
+  const { data: matchedTxData, isLoading: loadingMatchedTx } = useListTransactionsQuery(
+    { period, status: 'matched', limit: 100 },
+  )
+  const txData = {
+    items: [...(unmatchedTxData?.items ?? []), ...(matchedTxData?.items ?? [])],
+    total: (unmatchedTxData?.total ?? 0) + (matchedTxData?.total ?? 0),
+  }
+  const loadingTx = loadingUnmatchedTx || loadingMatchedTx
   const [createMatch, { isLoading: creating }] = useCreateMatchMutation()
 
   const invoices = invoiceData?.items ?? []
@@ -162,11 +198,11 @@ export function ManualMatchPage() {
         {/* Unmatched Transactions */}
         <Card withBorder>
           <Title order={5} mb="xs">
-            Unmatched Transactions
+            Transactions
             <Badge ml="sm" size="sm" color="gray">{transactions.length}</Badge>
           </Title>
           {transactions.length === 0 && !loading && (
-            <Text c="dimmed" size="sm">No unmatched transactions for this period.</Text>
+            <Text c="dimmed" size="sm">No transactions for this period.</Text>
           )}
           {transactions.length > 0 && (
             <ScrollArea>
@@ -189,7 +225,10 @@ export function ManualMatchPage() {
                       backgroundColor: tx.id === selectedTransaction ? 'var(--mantine-color-green-light)' : undefined,
                     }}
                   >
-                    <Table.Td fw={500}>{tx.counterparty || '—'}</Table.Td>
+                    <Table.Td fw={500}>
+                      {tx.counterparty || '—'}
+                      {tx.status === 'matched' && <Badge size="xs" color="green" ml={4}>matched</Badge>}
+                    </Table.Td>
                     <Table.Td>{tx.description}</Table.Td>
                     <Table.Td>{tx.tx_date}</Table.Td>
                     <Table.Td ta="right">{formatMoney(tx.amount)}</Table.Td>
