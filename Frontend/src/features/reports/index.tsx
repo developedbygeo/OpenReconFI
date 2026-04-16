@@ -30,7 +30,7 @@ function toYYYYMM(isoOrDate: string): string {
 export function ReportsPage() {
   const [timeframe, setTimeframe] = useState<string>('single_month')
   const [format, setFormat] = useState<string>('pdf')
-  const [singleMonth, setSingleMonth] = useState<string | null>(null)
+  const [singleMonth, setSingleMonth] = useState<string | null>(new Date().toISOString())
   const [quarter, setQuarter] = useState<string | null>(null)
   const [year, setYear] = useState<string | number>(new Date().getFullYear())
   const [fromMonth, setFromMonth] = useState<string | null>(null)

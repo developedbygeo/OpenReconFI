@@ -1,12 +1,13 @@
 import logging
 import re
+from calendar import monthrange
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import ConfirmedBy, InvoiceStatus, TransactionStatus
@@ -278,21 +279,38 @@ async def run_matching(
 
     result = MatchingResult()
 
-    # --- Fetch unmatched invoices ---
+    # --- Fetch unmatched invoices (include previous month for cross-period) ---
     inv_query = select(Invoice).where(
         Invoice.status.in_([InvoiceStatus.pending, InvoiceStatus.unmatched, InvoiceStatus.deferred])
     )
     if period:
-        inv_query = inv_query.where(Invoice.period == period)
+        y, m = int(period[:4]), int(period[5:7])
+        prev_m = m - 1 if m > 1 else 12
+        prev_y = y if m > 1 else y - 1
+        prev_period = f"{prev_y}-{prev_m:02d}"
+        inv_query = inv_query.where(Invoice.period.in_([period, prev_period]))
     inv_result = await db.execute(inv_query)
     invoices = inv_result.scalars().all()
 
-    # --- Fetch unmatched transactions ---
+    # --- Fetch unmatched transactions (include boundary days) ---
     tx_query = select(Transaction).where(
         Transaction.status == TransactionStatus.unmatched
     )
     if period:
-        tx_query = tx_query.where(Transaction.period == period)
+        y, m = int(period[:4]), int(period[5:7])
+        prev_m = m - 1 if m > 1 else 12
+        prev_y = y if m > 1 else y - 1
+        prev_last_day = date(prev_y, prev_m, monthrange(prev_y, prev_m)[1])
+        next_m = m + 1 if m < 12 else 1
+        next_y = y if m < 12 else y + 1
+        next_first_day = date(next_y, next_m, 1)
+        tx_query = tx_query.where(
+            or_(
+                Transaction.period == period,
+                Transaction.tx_date == prev_last_day,
+                Transaction.tx_date == next_first_day,
+            )
+        )
     tx_result = await db.execute(tx_query)
     transactions = tx_result.scalars().all()
 

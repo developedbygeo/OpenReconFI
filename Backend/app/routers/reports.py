@@ -1,19 +1,26 @@
 import logging
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
 from app.db import get_db
-from app.models.enums import ReportFormat
+from app.models.enums import ReportFormat, TransactionStatus
+from app.models.match import Match
+from app.models.transaction import Transaction
 from app.schemas.report import ReportMeta, ReportRequest
-from app.services.drive import upload_report
+from app.services.drive import create_period_summary_folder, upload_report
 from app.services.reporter import (
     generate_excel,
     generate_pdf,
     resolve_periods,
     timeframe_label,
+    _invoice_filename,
 )
 
 logger = logging.getLogger(__name__)
@@ -121,3 +128,93 @@ async def preview_report(body: ReportRequest) -> ReportMeta:
         format=body.format,
         filename=filename,
     )
+
+
+class PeriodSummaryRequest(BaseModel):
+    period: str  # YYYY-MM
+
+
+class PeriodSummaryResponse(BaseModel):
+    folder_url: str
+    invoices_copied: int
+
+
+@router.post(
+    "/period-summary",
+    response_model=PeriodSummaryResponse,
+)
+async def create_period_summary(
+    body: PeriodSummaryRequest,
+    db: AsyncSession = Depends(get_db),
+) -> PeriodSummaryResponse:
+    """Create a Drive folder with all matched invoices for a period."""
+    from calendar import monthrange
+    from sqlalchemy import or_
+
+    # Compute boundary dates
+    y, m = int(body.period[:4]), int(body.period[5:7])
+    prev_m = m - 1 if m > 1 else 12
+    prev_y = y if m > 1 else y - 1
+    prev_last_day = date(prev_y, prev_m, monthrange(prev_y, prev_m)[1])
+    next_m = m + 1 if m < 12 else 1
+    next_y = y if m < 12 else y + 1
+    next_first_day = date(next_y, next_m, 1)
+
+    # Get all matched transactions for the period + boundary days
+    tx_result = await db.execute(
+        select(Transaction)
+        .where(
+            or_(
+                Transaction.period == body.period,
+                Transaction.tx_date == prev_last_day,
+                Transaction.tx_date == next_first_day,
+            )
+        )
+        .where(Transaction.status == TransactionStatus.matched)
+    )
+    matched_txs = tx_result.scalars().all()
+
+    if not matched_txs:
+        raise HTTPException(status_code=404, detail="No matched transactions for this period")
+
+    # Get matches with invoices
+    matched_ids = [tx.id for tx in matched_txs]
+    match_result = await db.execute(
+        select(Match)
+        .where(Match.transaction_id.in_(matched_ids))
+        .options(selectinload(Match.invoice))
+    )
+    matches = match_result.scalars().all()
+
+    # Collect unique invoices that have Drive files
+    seen_ids = set()
+    invoice_files = []
+    for m in matches:
+        inv = m.invoice
+        if inv and inv.drive_file_id and inv.id not in seen_ids:
+            seen_ids.add(inv.id)
+            base = _invoice_filename(inv)
+            filename = base if "." in base else f"{base}{_get_ext(inv)}"
+            invoice_files.append({
+                "drive_file_id": inv.drive_file_id,
+                "filename": filename,
+            })
+
+    if not invoice_files:
+        raise HTTPException(status_code=404, detail="No invoices with Drive files found for this period")
+
+    folder_url = await create_period_summary_folder(body.period, invoice_files)
+
+    return PeriodSummaryResponse(
+        folder_url=folder_url,
+        invoices_copied=len(invoice_files),
+    )
+
+
+def _get_ext(inv) -> str:
+    """Get file extension from raw_extraction or default to .pdf."""
+    if inv.raw_extraction and isinstance(inv.raw_extraction, dict):
+        fname = inv.raw_extraction.get("filename") or inv.raw_extraction.get("file_name") or ""
+        if "." in fname:
+            return fname[fname.rfind("."):]
+    return ".pdf"

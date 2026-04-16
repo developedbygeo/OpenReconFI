@@ -107,12 +107,42 @@ def _invoice_filename(inv) -> str:
 # ---------------------------------------------------------------------------
 
 
-async def _gather_report_data(db: AsyncSession, periods: list[str]) -> dict:
+def _boundary_dates(periods: list[str]) -> tuple[date, date]:
+    """Return the last day of the month before the first period,
+    and the first day of the month after the last period."""
+    from calendar import monthrange
+    first_y, first_m = int(periods[0][:4]), int(periods[0][5:7])
+    last_y, last_m = int(periods[-1][:4]), int(periods[-1][5:7])
+    # Last day of previous month
+    prev_m = first_m - 1 if first_m > 1 else 12
+    prev_y = first_y if first_m > 1 else first_y - 1
+    prev_last_day = date(prev_y, prev_m, monthrange(prev_y, prev_m)[1])
+    # First day of next month
+    next_m = last_m + 1 if last_m < 12 else 1
+    next_y = last_y if last_m < 12 else last_y + 1
+    next_first_day = date(next_y, next_m, 1)
+    return prev_last_day, next_first_day
+
+
+async def _gather_report_data(db: AsyncSession, periods: list[str], include_boundary: bool = False) -> dict:
     """Query all transactions in periods and classify by status."""
+    from sqlalchemy import or_
+
     # 1. Load all transactions in the requested periods
+    conditions = [Transaction.period.in_(periods)]
+    if include_boundary:
+        prev_last, next_first = _boundary_dates(periods)
+        conditions = [
+            or_(
+                Transaction.period.in_(periods),
+                Transaction.tx_date == prev_last,
+                Transaction.tx_date == next_first,
+            )
+        ]
+
     tx_result = await db.execute(
         select(Transaction)
-        .where(Transaction.period.in_(periods))
+        .where(*conditions)
         .order_by(Transaction.tx_date)
     )
     all_txs = tx_result.scalars().all()
@@ -238,8 +268,8 @@ def _render_html(label: str, data: dict, slim: bool = False) -> str:
 <h2>Matched Expenses</h2>
 <table>
   <tr>
-    <th>Tx Date</th><th>Inv Date</th><th>Amount</th><th>FX Amount</th>
-    <th>Vendor</th><th>Invoice #</th><th>Inv Amount</th><th>Currency</th>
+    <th>Tx Date</th><th>Inv Date</th><th>FX Amount</th>
+    <th>Vendor</th><th>Invoice #</th><th>Tx Amount</th><th>Inv Amount</th><th>Currency</th>
     <th>Category</th>
   </tr>""")
             for m in data["matches"]:
@@ -249,10 +279,10 @@ def _render_html(label: str, data: dict, slim: bool = False) -> str:
                 html_parts.append(
                     f"  <tr><td>{tx.tx_date}</td>"
                     f"<td>{inv.invoice_date}</td>"
-                    f'<td class="num">&euro;{_fmt(tx.amount)}</td>'
                     f'<td class="num">{fx_amount}</td>'
                     f"<td>{inv.vendor}</td>"
                     f"<td>{inv.invoice_number}</td>"
+                    f'<td class="num">&euro;{_fmt(tx.amount)}</td>'
                     f'<td class="num">{_fmt(inv.amount_incl)}</td>'
                     f"<td>{inv.currency}</td>"
                     f"<td>{inv.category or ''}</td></tr>"
@@ -264,8 +294,8 @@ def _render_html(label: str, data: dict, slim: bool = False) -> str:
 <h2>Matched Expenses</h2>
 <table>
   <tr>
-    <th>Tx Date</th><th>Inv Date</th><th>EUR Amount</th><th>FX Amount</th><th>Counterparty</th>
-    <th>Vendor</th><th>Invoice #</th><th>Inv Amount</th><th>Currency</th>
+    <th>Tx Date</th><th>Inv Date</th><th>FX Amount</th><th>Counterparty</th>
+    <th>Vendor</th><th>Invoice #</th><th>Tx Amount</th><th>Inv Amount</th><th>Currency</th>
     <th>File</th><th>Category</th><th>Confidence</th><th>Confirmed By</th>
   </tr>""")
             for m in data["matches"]:
@@ -275,11 +305,11 @@ def _render_html(label: str, data: dict, slim: bool = False) -> str:
                 html_parts.append(
                     f"  <tr><td>{tx.tx_date}</td>"
                     f"<td>{inv.invoice_date}</td>"
-                    f'<td class="num">&euro;{_fmt(tx.amount)}</td>'
                     f'<td class="num">{fx_amount}</td>'
                     f"<td>{tx.counterparty}</td>"
                     f"<td>{inv.vendor}</td>"
                     f"<td>{inv.invoice_number}</td>"
+                    f'<td class="num">&euro;{_fmt(tx.amount)}</td>'
                     f'<td class="num">{_fmt(inv.amount_incl)}</td>'
                     f"<td>{inv.currency}</td>"
                     f"<td>{_invoice_filename(inv)}</td>"
@@ -372,7 +402,7 @@ def _render_html(label: str, data: dict, slim: bool = False) -> str:
 
 async def generate_pdf(db: AsyncSession, label: str, periods: list[str], slim: bool = False) -> bytes:
     """Generate a PDF report for the given periods."""
-    data = await _gather_report_data(db, periods)
+    data = await _gather_report_data(db, periods, include_boundary=True)
     html_str = _render_html(label, data, slim=slim)
     from weasyprint import HTML  # lazy import — requires system libs (pango, cairo)
 
@@ -392,7 +422,7 @@ def _write_header(ws, headers: list[str]) -> None:
 
 async def generate_excel(db: AsyncSession, label: str, periods: list[str], slim: bool = False) -> bytes:
     """Generate an Excel report for the given periods."""
-    data = await _gather_report_data(db, periods)
+    data = await _gather_report_data(db, periods, include_boundary=True)
     wb = openpyxl.Workbook()
     s = data["summary"]
 
@@ -402,19 +432,19 @@ async def generate_excel(db: AsyncSession, label: str, periods: list[str], slim:
         ws.title = "Matched Expenses"
         if data["matches"]:
             _write_header(ws, [
-                "Tx Date", "Inv Date", "Amount", "FX Amount", "FX Currency",
-                "Vendor", "Invoice #", "Inv Amount", "Currency", "Category",
+                "Tx Date", "Inv Date", "FX Amount", "FX Currency",
+                "Vendor", "Invoice #", "Tx Amount", "Inv Amount", "Currency", "Category",
             ])
             for i, m in enumerate(data["matches"], 2):
                 tx = m.transaction
                 inv = m.invoice
                 ws.cell(row=i, column=1, value=str(tx.tx_date))
                 ws.cell(row=i, column=2, value=str(inv.invoice_date))
-                ws.cell(row=i, column=3, value=float(tx.amount))
-                ws.cell(row=i, column=4, value=float(tx.original_amount) if tx.original_amount else None)
-                ws.cell(row=i, column=5, value=tx.original_currency or "")
-                ws.cell(row=i, column=6, value=inv.vendor)
-                ws.cell(row=i, column=7, value=inv.invoice_number)
+                ws.cell(row=i, column=3, value=float(tx.original_amount) if tx.original_amount else None)
+                ws.cell(row=i, column=4, value=tx.original_currency or "")
+                ws.cell(row=i, column=5, value=inv.vendor)
+                ws.cell(row=i, column=6, value=inv.invoice_number)
+                ws.cell(row=i, column=7, value=float(tx.amount))
                 ws.cell(row=i, column=8, value=float(inv.amount_incl))
                 ws.cell(row=i, column=9, value=inv.currency)
                 ws.cell(row=i, column=10, value=inv.category or "")
@@ -445,8 +475,8 @@ async def generate_excel(db: AsyncSession, label: str, periods: list[str], slim:
     if not slim and data["matches"]:
         ws_m = wb.create_sheet("Matched Expenses")
         _write_header(ws_m, [
-            "Tx Date", "Inv Date", "EUR Amount", "FX Amount", "FX Currency", "Counterparty",
-            "Vendor", "Invoice #", "Inv Amount", "Inv Currency",
+            "Tx Date", "Inv Date", "FX Amount", "FX Currency", "Counterparty",
+            "Vendor", "Invoice #", "Tx Amount", "Inv Amount", "Inv Currency",
             "File", "Category", "Confidence", "Confirmed By",
         ])
         for i, m in enumerate(data["matches"], 2):
@@ -454,12 +484,12 @@ async def generate_excel(db: AsyncSession, label: str, periods: list[str], slim:
             inv = m.invoice
             ws_m.cell(row=i, column=1, value=str(tx.tx_date))
             ws_m.cell(row=i, column=2, value=str(inv.invoice_date))
-            ws_m.cell(row=i, column=3, value=float(tx.amount))
-            ws_m.cell(row=i, column=4, value=float(tx.original_amount) if tx.original_amount else None)
-            ws_m.cell(row=i, column=5, value=tx.original_currency or "")
-            ws_m.cell(row=i, column=6, value=tx.counterparty)
-            ws_m.cell(row=i, column=7, value=inv.vendor)
-            ws_m.cell(row=i, column=8, value=inv.invoice_number)
+            ws_m.cell(row=i, column=3, value=float(tx.original_amount) if tx.original_amount else None)
+            ws_m.cell(row=i, column=4, value=tx.original_currency or "")
+            ws_m.cell(row=i, column=5, value=tx.counterparty)
+            ws_m.cell(row=i, column=6, value=inv.vendor)
+            ws_m.cell(row=i, column=7, value=inv.invoice_number)
+            ws_m.cell(row=i, column=8, value=float(tx.amount))
             ws_m.cell(row=i, column=9, value=float(inv.amount_incl))
             ws_m.cell(row=i, column=10, value=inv.currency)
             ws_m.cell(row=i, column=11, value=_invoice_filename(inv))

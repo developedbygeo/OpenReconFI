@@ -18,11 +18,12 @@ import {
   ScrollArea,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
-import { IconCheck, IconAlertTriangle, IconX, IconArrowBack, IconClock } from '@tabler/icons-react'
+import { IconCheck, IconAlertTriangle, IconX, IconArrowBack, IconClock, IconFolderPlus } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import { useNavigate } from 'react-router-dom'
 import { useReconciliationOverviewQuery, useDismissTransactionMutation, useUndismissTransactionMutation, useUpdateTransactionMutation } from '../../../store/reconciliationApi.ts'
 import { useUpdateInvoiceMutation } from '../../../store/invoicesApi.ts'
+import { useCreatePeriodSummaryMutation } from '../../../store/reportsApi.ts'
 import { useListCategoriesQuery } from '../../../store/categoriesApi.ts'
 import type { UnmatchedTransactionSummary } from '../../../api/types/index.ts'
 import { formatMoney } from '../../../utils/format.ts'
@@ -37,6 +38,22 @@ export function ReconciliationOverview({ period }: { period: string }) {
   const [undismissTx] = useUndismissTransactionMutation()
   const [updateTx] = useUpdateTransactionMutation()
   const [updateInvoice] = useUpdateInvoiceMutation()
+  const [createSummary, { isLoading: creatingSummary }] = useCreatePeriodSummaryMutation()
+
+  const handleCreateSummary = async () => {
+    try {
+      const result = await createSummary({ period }).unwrap()
+      notifications.show({
+        title: 'Summary folder created',
+        message: `${result.invoices_copied} invoices copied to Drive.`,
+        color: 'green',
+      })
+      window.open(result.folder_url, '_blank')
+    } catch (err: unknown) {
+      const msg = (err as { data?: { detail?: string } })?.data?.detail ?? 'Could not create summary folder.'
+      notifications.show({ title: 'Error', message: msg, color: 'red' })
+    }
+  }
 
   const handleDeferInvoice = async (invoiceId: string) => {
     try {
@@ -109,11 +126,22 @@ export function ReconciliationOverview({ period }: { period: string }) {
     <Stack>
       <Group justify="space-between">
         <Title order={4}>Period Overview — {data.period}</Title>
-        {data.is_complete ? (
-          <Badge color="green" size="lg" leftSection={<IconCheck size={14} />}>Reconciled</Badge>
-        ) : (
-          <Badge color="orange" size="lg" leftSection={<IconAlertTriangle size={14} />}>Incomplete</Badge>
-        )}
+        <Group gap="sm">
+          <Button
+            variant="light"
+            size="xs"
+            leftSection={<IconFolderPlus size={14} />}
+            loading={creatingSummary}
+            onClick={handleCreateSummary}
+          >
+            Export Invoices to Drive
+          </Button>
+          {data.is_complete ? (
+            <Badge color="green" size="lg" leftSection={<IconCheck size={14} />}>Reconciled</Badge>
+          ) : (
+            <Badge color="orange" size="lg" leftSection={<IconAlertTriangle size={14} />}>Incomplete</Badge>
+          )}
+        </Group>
       </Group>
 
       <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, md: 6 }}>

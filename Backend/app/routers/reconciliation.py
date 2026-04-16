@@ -1,9 +1,10 @@
-from datetime import datetime, timezone
+from calendar import monthrange
+from datetime import date, datetime, timezone
 from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
@@ -121,7 +122,17 @@ async def period_overview(
     """Full reconciliation overview for a period — shows whether the month is complete."""
     from decimal import Decimal
 
-    # Invoices
+    # Compute boundary dates
+    y, m = int(period[:4]), int(period[5:7])
+    prev_m = m - 1 if m > 1 else 12
+    prev_y = y if m > 1 else y - 1
+    prev_last_day = date(prev_y, prev_m, monthrange(prev_y, prev_m)[1])
+    next_m = m + 1 if m < 12 else 1
+    next_y = y if m < 12 else y + 1
+    next_first_day = date(next_y, next_m, 1)
+    prev_period = f"{prev_y}-{prev_m:02d}"
+
+    # Invoices (current period only)
     inv_result = await db.execute(
         select(Invoice).where(Invoice.period == period)
     )
@@ -134,9 +145,15 @@ async def period_overview(
     unmatched_invoices_list = [i for i in active_invoices if i.status != InvoiceStatus.matched]
     total_invoiced_incl = sum(i.amount_incl for i in active_invoices)
 
-    # All transactions for the period
+    # All transactions for the period (include boundary days)
     tx_result = await db.execute(
-        select(Transaction).where(Transaction.period == period)
+        select(Transaction).where(
+            or_(
+                Transaction.period == period,
+                Transaction.tx_date == prev_last_day,
+                Transaction.tx_date == next_first_day,
+            )
+        )
     )
     transactions = tx_result.scalars().all()
 
@@ -328,8 +345,20 @@ async def list_transactions(
     count_query = select(func.count(Transaction.id))
 
     if period:
-        query = query.where(Transaction.period == period)
-        count_query = count_query.where(Transaction.period == period)
+        y, m = int(period[:4]), int(period[5:7])
+        prev_m = m - 1 if m > 1 else 12
+        prev_y = y if m > 1 else y - 1
+        prev_last_day = date(prev_y, prev_m, monthrange(prev_y, prev_m)[1])
+        next_m = m + 1 if m < 12 else 1
+        next_y = y if m < 12 else y + 1
+        next_first_day = date(next_y, next_m, 1)
+        period_filter = or_(
+            Transaction.period == period,
+            Transaction.tx_date == prev_last_day,
+            Transaction.tx_date == next_first_day,
+        )
+        query = query.where(period_filter)
+        count_query = count_query.where(period_filter)
     if status:
         query = query.where(Transaction.status == status)
         count_query = count_query.where(Transaction.status == status)

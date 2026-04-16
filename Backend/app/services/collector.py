@@ -55,10 +55,11 @@ async def run_collection(db: AsyncSession) -> dict[str, Any]:
         try:
             extracted = await extract_invoice_from_pdf(att.data)
 
-            # Deduplicate by invoice number
+            # Deduplicate by invoice number + date
             existing = await db.execute(
                 select(Invoice.id).where(
-                    Invoice.invoice_number == extracted["invoice_number"]
+                    Invoice.invoice_number == extracted["invoice_number"],
+                    Invoice.invoice_date == extracted["invoice_date"],
                 )
             )
             if existing.scalar_one_or_none() is not None:
