@@ -22,6 +22,7 @@ export const listInvoicesInvoicesGetQueryLimitMax = 100;
 export const ListInvoicesInvoicesGetQueryParams = zod.object({
   "period": zod.union([zod.string(),zod.null()]).optional().describe('Filter by period e.g. 2026-03'),
   "status": zod.union([zod.string(),zod.null()]).optional().describe('Filter by status'),
+  "category": zod.union([zod.string(),zod.null()]).optional().describe('Filter by category'),
   "skip": zod.number().min(listInvoicesInvoicesGetQuerySkipMin).default(listInvoicesInvoicesGetQuerySkipDefault),
   "limit": zod.number().min(1).max(listInvoicesInvoicesGetQueryLimitMax).default(listInvoicesInvoicesGetQueryLimitDefault)
 })
@@ -47,7 +48,7 @@ export const ListInvoicesInvoicesGetResponse = zod.object({
   "drive_url": zod.union([zod.string(),zod.null()]).optional(),
   "drive_file_id": zod.union([zod.string(),zod.null()]).optional(),
   "source": zod.enum(['gmail', 'portal', 'manual']),
-  "status": zod.enum(['pending', 'matched', 'unmatched', 'flagged']),
+  "status": zod.enum(['pending', 'matched', 'unmatched', 'flagged', 'deferred']),
   "period": zod.string(),
   "raw_extraction": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional(),
   "created_at": zod.iso.datetime({})
@@ -112,7 +113,7 @@ export const GetInvoiceInvoicesInvoiceIdGetResponse = zod.object({
   "drive_url": zod.union([zod.string(),zod.null()]).optional(),
   "drive_file_id": zod.union([zod.string(),zod.null()]).optional(),
   "source": zod.enum(['gmail', 'portal', 'manual']),
-  "status": zod.enum(['pending', 'matched', 'unmatched', 'flagged']),
+  "status": zod.enum(['pending', 'matched', 'unmatched', 'flagged', 'deferred']),
   "period": zod.string(),
   "raw_extraction": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional(),
   "created_at": zod.iso.datetime({})
@@ -128,7 +129,7 @@ export const UpdateInvoiceInvoicesInvoiceIdPatchParams = zod.object({
 export const UpdateInvoiceInvoicesInvoiceIdPatchBody = zod.object({
   "vendor": zod.union([zod.string(),zod.null()]).optional(),
   "category": zod.union([zod.string(),zod.null()]).optional(),
-  "status": zod.union([zod.enum(['pending', 'matched', 'unmatched', 'flagged']),zod.null()]).optional()
+  "status": zod.union([zod.enum(['pending', 'matched', 'unmatched', 'flagged', 'deferred']),zod.null()]).optional()
 })
 
 export const updateInvoiceInvoicesInvoiceIdPatchResponseAmountExclRegExp = new RegExp('^(?!^[-+.]\*$)[+-]?0\*\\d\*\\.?\\d\*$');
@@ -151,7 +152,7 @@ export const UpdateInvoiceInvoicesInvoiceIdPatchResponse = zod.object({
   "drive_url": zod.union([zod.string(),zod.null()]).optional(),
   "drive_file_id": zod.union([zod.string(),zod.null()]).optional(),
   "source": zod.enum(['gmail', 'portal', 'manual']),
-  "status": zod.enum(['pending', 'matched', 'unmatched', 'flagged']),
+  "status": zod.enum(['pending', 'matched', 'unmatched', 'flagged', 'deferred']),
   "period": zod.string(),
   "raw_extraction": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional(),
   "created_at": zod.iso.datetime({})

@@ -167,8 +167,12 @@ async def _gather_report_data(db: AsyncSession, periods: list[str], include_boun
             .order_by(Match.transaction_id)
         )
         matches = list(match_result.scalars().all())
-        # Sort matches by transaction date for display
-        matches.sort(key=lambda m: m.transaction.tx_date if m.transaction else date.min)
+        # Sort by tx date, then by transaction_id so split matches (1 tx → N invoices)
+        # stay grouped together as consecutive rows.
+        matches.sort(key=lambda m: (
+            m.transaction.tx_date if m.transaction else date.min,
+            str(m.transaction_id),
+        ))
 
     # 4. Compute summary
     total_debits = sum(tx.amount for tx in debit_txs)
@@ -230,7 +234,7 @@ def _render_html(label: str, data: dict, slim: bool = False) -> str:
   .cover h1 {{ font-size: 28px; border: none; }}
   .cover p {{ font-size: 14px; color: #666; }}
   .page-break {{ page-break-before: always; }}
-  .landscape {{ page-break-before: always; page: landscape; }}
+  .landscape {{ page-break-before: always; page-break-after: always; page: landscape; }}
   @page landscape {{ size: A4 landscape; margin: 20mm; }}
 </style>
 </head><body>
@@ -268,25 +272,33 @@ def _render_html(label: str, data: dict, slim: bool = False) -> str:
 <h2>Matched Expenses</h2>
 <table>
   <tr>
-    <th>Tx Date</th><th>Inv Date</th><th>FX Amount</th>
+    <th>Tx Date</th><th>Inv Date</th><th>Original Amount</th><th>Counterparty</th>
     <th>Vendor</th><th>Invoice #</th><th>Tx Amount</th><th>Inv Amount</th><th>Currency</th>
     <th>Category</th>
   </tr>""")
+            prev_tx_id = None
             for m in data["matches"]:
                 tx = m.transaction
                 inv = m.invoice
-                fx_amount = f"{_fmt(tx.original_amount)} {tx.original_currency}" if tx.original_amount else ""
+                is_split_cont = m.transaction_id == prev_tx_id
+                original_amt = (
+                    f"{_fmt(tx.original_amount)} {tx.original_currency}"
+                    if tx.original_amount
+                    else f"{_fmt(abs(tx.amount))} EUR"
+                )
                 html_parts.append(
-                    f"  <tr><td>{tx.tx_date}</td>"
+                    f"  <tr><td>{'' if is_split_cont else tx.tx_date}</td>"
                     f"<td>{inv.invoice_date}</td>"
-                    f'<td class="num">{fx_amount}</td>'
+                    f'<td class="num">{"" if is_split_cont else original_amt}</td>'
+                    f"<td>{'' if is_split_cont else (tx.counterparty or '')}</td>"
                     f"<td>{inv.vendor}</td>"
                     f"<td>{inv.invoice_number}</td>"
-                    f'<td class="num">&euro;{_fmt(tx.amount)}</td>'
+                    f'<td class="num">{"" if is_split_cont else f"&euro;{_fmt(tx.amount)}"}</td>'
                     f'<td class="num">{_fmt(inv.amount_incl)}</td>'
                     f"<td>{inv.currency}</td>"
                     f"<td>{inv.category or ''}</td></tr>"
                 )
+                prev_tx_id = m.transaction_id
             html_parts.append("</table></div>")
         else:
             html_parts.append("""
@@ -294,22 +306,28 @@ def _render_html(label: str, data: dict, slim: bool = False) -> str:
 <h2>Matched Expenses</h2>
 <table>
   <tr>
-    <th>Tx Date</th><th>Inv Date</th><th>FX Amount</th><th>Counterparty</th>
+    <th>Tx Date</th><th>Inv Date</th><th>Original Amount</th><th>Counterparty</th>
     <th>Vendor</th><th>Invoice #</th><th>Tx Amount</th><th>Inv Amount</th><th>Currency</th>
     <th>File</th><th>Category</th><th>Confidence</th><th>Confirmed By</th>
   </tr>""")
+            prev_tx_id = None
             for m in data["matches"]:
                 tx = m.transaction
                 inv = m.invoice
-                fx_amount = f"{_fmt(tx.original_amount)} {tx.original_currency}" if tx.original_amount else ""
+                is_split_cont = m.transaction_id == prev_tx_id
+                original_amt = (
+                    f"{_fmt(tx.original_amount)} {tx.original_currency}"
+                    if tx.original_amount
+                    else f"{_fmt(abs(tx.amount))} EUR"
+                )
                 html_parts.append(
-                    f"  <tr><td>{tx.tx_date}</td>"
+                    f"  <tr><td>{'' if is_split_cont else tx.tx_date}</td>"
                     f"<td>{inv.invoice_date}</td>"
-                    f'<td class="num">{fx_amount}</td>'
-                    f"<td>{tx.counterparty}</td>"
+                    f'<td class="num">{"" if is_split_cont else original_amt}</td>'
+                    f"<td>{'' if is_split_cont else tx.counterparty}</td>"
                     f"<td>{inv.vendor}</td>"
                     f"<td>{inv.invoice_number}</td>"
-                    f'<td class="num">&euro;{_fmt(tx.amount)}</td>'
+                    f'<td class="num">{"" if is_split_cont else f"&euro;{_fmt(tx.amount)}"}</td>'
                     f'<td class="num">{_fmt(inv.amount_incl)}</td>'
                     f"<td>{inv.currency}</td>"
                     f"<td>{_invoice_filename(inv)}</td>"
@@ -317,6 +335,7 @@ def _render_html(label: str, data: dict, slim: bool = False) -> str:
                     f'<td class="num">{_fmt(m.confidence)}</td>'
                     f"<td>{m.confirmed_by.value}</td></tr>"
                 )
+                prev_tx_id = m.transaction_id
             html_parts.append("</table></div>")
 
     # Withholdings
@@ -366,8 +385,8 @@ def _render_html(label: str, data: dict, slim: bool = False) -> str:
                 )
             html_parts.append("</table></div>")
 
-    # Earnings (credits)
-    if data["earnings_txs"]:
+    # Earnings (credits) — full report only
+    if not slim and data["earnings_txs"]:
         html_parts.append("""
 <h2>Earnings</h2>
 <table>
@@ -432,22 +451,26 @@ async def generate_excel(db: AsyncSession, label: str, periods: list[str], slim:
         ws.title = "Matched Expenses"
         if data["matches"]:
             _write_header(ws, [
-                "Tx Date", "Inv Date", "FX Amount", "FX Currency",
+                "Tx Date", "Inv Date", "Original Amount", "Original Currency", "Counterparty",
                 "Vendor", "Invoice #", "Tx Amount", "Inv Amount", "Currency", "Category",
             ])
+            prev_tx_id = None
             for i, m in enumerate(data["matches"], 2):
                 tx = m.transaction
                 inv = m.invoice
-                ws.cell(row=i, column=1, value=str(tx.tx_date))
+                is_split_cont = m.transaction_id == prev_tx_id
+                ws.cell(row=i, column=1, value=None if is_split_cont else str(tx.tx_date))
                 ws.cell(row=i, column=2, value=str(inv.invoice_date))
-                ws.cell(row=i, column=3, value=float(tx.original_amount) if tx.original_amount else None)
-                ws.cell(row=i, column=4, value=tx.original_currency or "")
-                ws.cell(row=i, column=5, value=inv.vendor)
-                ws.cell(row=i, column=6, value=inv.invoice_number)
-                ws.cell(row=i, column=7, value=float(tx.amount))
-                ws.cell(row=i, column=8, value=float(inv.amount_incl))
-                ws.cell(row=i, column=9, value=inv.currency)
-                ws.cell(row=i, column=10, value=inv.category or "")
+                ws.cell(row=i, column=3, value=None if is_split_cont else float(tx.original_amount if tx.original_amount else abs(tx.amount)))
+                ws.cell(row=i, column=4, value=None if is_split_cont else (tx.original_currency or "EUR"))
+                ws.cell(row=i, column=5, value=None if is_split_cont else (tx.counterparty or ""))
+                ws.cell(row=i, column=6, value=inv.vendor)
+                ws.cell(row=i, column=7, value=inv.invoice_number)
+                ws.cell(row=i, column=8, value=None if is_split_cont else float(tx.amount))
+                ws.cell(row=i, column=9, value=float(inv.amount_incl))
+                ws.cell(row=i, column=10, value=inv.currency)
+                ws.cell(row=i, column=11, value=inv.category or "")
+                prev_tx_id = m.transaction_id
     else:
         ws.title = "Summary"
         _write_header(ws, ["Metric", "Value"])
@@ -475,27 +498,30 @@ async def generate_excel(db: AsyncSession, label: str, periods: list[str], slim:
     if not slim and data["matches"]:
         ws_m = wb.create_sheet("Matched Expenses")
         _write_header(ws_m, [
-            "Tx Date", "Inv Date", "FX Amount", "FX Currency", "Counterparty",
+            "Tx Date", "Inv Date", "Original Amount", "Original Currency", "Counterparty",
             "Vendor", "Invoice #", "Tx Amount", "Inv Amount", "Inv Currency",
             "File", "Category", "Confidence", "Confirmed By",
         ])
+        prev_tx_id = None
         for i, m in enumerate(data["matches"], 2):
             tx = m.transaction
             inv = m.invoice
-            ws_m.cell(row=i, column=1, value=str(tx.tx_date))
+            is_split_cont = m.transaction_id == prev_tx_id
+            ws_m.cell(row=i, column=1, value=None if is_split_cont else str(tx.tx_date))
             ws_m.cell(row=i, column=2, value=str(inv.invoice_date))
-            ws_m.cell(row=i, column=3, value=float(tx.original_amount) if tx.original_amount else None)
-            ws_m.cell(row=i, column=4, value=tx.original_currency or "")
-            ws_m.cell(row=i, column=5, value=tx.counterparty)
+            ws_m.cell(row=i, column=3, value=None if is_split_cont else float(tx.original_amount if tx.original_amount else abs(tx.amount)))
+            ws_m.cell(row=i, column=4, value=None if is_split_cont else (tx.original_currency or "EUR"))
+            ws_m.cell(row=i, column=5, value=None if is_split_cont else tx.counterparty)
             ws_m.cell(row=i, column=6, value=inv.vendor)
             ws_m.cell(row=i, column=7, value=inv.invoice_number)
-            ws_m.cell(row=i, column=8, value=float(tx.amount))
+            ws_m.cell(row=i, column=8, value=None if is_split_cont else float(tx.amount))
             ws_m.cell(row=i, column=9, value=float(inv.amount_incl))
             ws_m.cell(row=i, column=10, value=inv.currency)
             ws_m.cell(row=i, column=11, value=_invoice_filename(inv))
             ws_m.cell(row=i, column=12, value=inv.category or "")
             ws_m.cell(row=i, column=13, value=float(m.confidence))
             ws_m.cell(row=i, column=14, value=m.confirmed_by.value)
+            prev_tx_id = m.transaction_id
 
     # --- Withholdings sheet ---
     if data["withholding_txs"]:
@@ -527,8 +553,8 @@ async def generate_excel(db: AsyncSession, label: str, periods: list[str], slim:
                 ws_d.cell(row=i, column=5, value=tx.category or "")
                 ws_d.cell(row=i, column=6, value=tx.note or "")
 
-    # --- Earnings sheet ---
-    if data["earnings_txs"]:
+    # --- Earnings sheet (full only) ---
+    if not slim and data["earnings_txs"]:
         ws_e = wb.create_sheet("Earnings")
         _write_header(ws_e, ["Date", "Amount", "Counterparty", "Description"])
         for i, tx in enumerate(data["earnings_txs"], 2):

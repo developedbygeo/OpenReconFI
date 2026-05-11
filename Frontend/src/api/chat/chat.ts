@@ -21,7 +21,6 @@ export const SendMessageChatMessagePostBody = zod.object({
 export const SendMessageChatMessagePostResponse = zod.unknown()
 
 /**
- * Get full chat history.
  * @summary Get History
  */
 export const GetHistoryChatHistoryGetResponse = zod.object({
@@ -37,10 +36,17 @@ export const GetHistoryChatHistoryGetResponse = zod.object({
 })
 
 /**
- * Clear all chat history.
  * @summary Clear History
  */
 export const ClearHistoryChatHistoryDeleteResponse = zod.object({
   "deleted": zod.number()
+})
+
+/**
+ * Get contextual chat suggestions based on financial data and conversation history.
+ * @summary Get Suggestions
+ */
+export const GetSuggestionsChatSuggestionsGetResponse = zod.object({
+  "questions": zod.array(zod.string())
 })
 

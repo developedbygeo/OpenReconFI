@@ -82,8 +82,6 @@ export function MatchTable({
               <Table.Td>
                 {match.confirmed_by === 'user' ? (
                   <Badge color="green">Confirmed</Badge>
-                ) : match.confirmed_by === 'llm' ? (
-                  <Badge color="blue">LLM suggested</Badge>
                 ) : (
                   <Badge color="gray">Pending</Badge>
                 )}

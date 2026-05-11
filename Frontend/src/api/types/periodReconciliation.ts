@@ -34,4 +34,5 @@ export interface PeriodReconciliation {
   gap: string;
   unmatched_invoice_list: UnmatchedInvoiceSummary[];
   unmatched_transaction_list: UnmatchedTransactionSummary[];
+  dismissed_transaction_list: UnmatchedTransactionSummary[];
 }

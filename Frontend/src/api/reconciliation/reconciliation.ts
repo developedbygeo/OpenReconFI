@@ -31,7 +31,9 @@ export const periodOverviewReconciliationOverviewGetResponseWithholdingTotalRegE
 export const periodOverviewReconciliationOverviewGetResponseEarningsTotalRegExp = new RegExp('^(?!^[-+.]\*$)[+-]?0\*\\d\*\\.?\\d\*$');
 export const periodOverviewReconciliationOverviewGetResponseGapRegExp = new RegExp('^(?!^[-+.]\*$)[+-]?0\*\\d\*\\.?\\d\*$');
 export const periodOverviewReconciliationOverviewGetResponseUnmatchedInvoiceListItemAmountInclRegExp = new RegExp('^(?!^[-+.]\*$)[+-]?0\*\\d\*\\.?\\d\*$');
+export const periodOverviewReconciliationOverviewGetResponseUnmatchedInvoiceListItemCurrencyDefault = `EUR`;
 export const periodOverviewReconciliationOverviewGetResponseUnmatchedTransactionListItemAmountRegExp = new RegExp('^(?!^[-+.]\*$)[+-]?0\*\\d\*\\.?\\d\*$');
+export const periodOverviewReconciliationOverviewGetResponseDismissedTransactionListItemAmountRegExp = new RegExp('^(?!^[-+.]\*$)[+-]?0\*\\d\*\\.?\\d\*$');
 
 
 export const PeriodOverviewReconciliationOverviewGetResponse = zod.object({
@@ -58,6 +60,7 @@ export const PeriodOverviewReconciliationOverviewGetResponse = zod.object({
   "invoice_number": zod.string(),
   "amount_incl": zod.string().regex(periodOverviewReconciliationOverviewGetResponseUnmatchedInvoiceListItemAmountInclRegExp),
   "invoice_date": zod.string(),
+  "currency": zod.string().default(periodOverviewReconciliationOverviewGetResponseUnmatchedInvoiceListItemCurrencyDefault),
   "category": zod.union([zod.string(),zod.null()]).optional()
 })),
   "unmatched_transaction_list": zod.array(zod.object({
@@ -66,7 +69,17 @@ export const PeriodOverviewReconciliationOverviewGetResponse = zod.object({
   "description": zod.string(),
   "amount": zod.string().regex(periodOverviewReconciliationOverviewGetResponseUnmatchedTransactionListItemAmountRegExp),
   "tx_date": zod.string(),
-  "category": zod.union([zod.string(),zod.null()]).optional()
+  "category": zod.union([zod.string(),zod.null()]).optional(),
+  "note": zod.union([zod.string(),zod.null()]).optional()
+})),
+  "dismissed_transaction_list": zod.array(zod.object({
+  "id": zod.uuid(),
+  "counterparty": zod.string(),
+  "description": zod.string(),
+  "amount": zod.string().regex(periodOverviewReconciliationOverviewGetResponseDismissedTransactionListItemAmountRegExp),
+  "tx_date": zod.string(),
+  "category": zod.union([zod.string(),zod.null()]).optional(),
+  "note": zod.union([zod.string(),zod.null()]).optional()
 }))
 })
 
@@ -90,6 +103,7 @@ export const listTransactionsReconciliationTransactionsGetQueryLimitMax = 100;
 export const ListTransactionsReconciliationTransactionsGetQueryParams = zod.object({
   "period": zod.union([zod.string(),zod.null()]).optional(),
   "status": zod.union([zod.enum(['unmatched', 'matched', 'no_invoice', 'withholding']),zod.null()]).optional(),
+  "category": zod.union([zod.string(),zod.null()]).optional(),
   "skip": zod.number().min(listTransactionsReconciliationTransactionsGetQuerySkipMin).default(listTransactionsReconciliationTransactionsGetQuerySkipDefault),
   "limit": zod.number().min(1).max(listTransactionsReconciliationTransactionsGetQueryLimitMax).default(listTransactionsReconciliationTransactionsGetQueryLimitDefault)
 })
@@ -150,6 +164,67 @@ export const DismissTransactionReconciliationTransactionsTransactionIdDismissPos
 })
 
 /**
+ * Undo a dismiss — set transaction back to unmatched.
+ * @summary Undismiss Transaction
+ */
+export const UndismissTransactionReconciliationTransactionsTransactionIdUndismissPostParams = zod.object({
+  "transaction_id": zod.uuid()
+})
+
+export const undismissTransactionReconciliationTransactionsTransactionIdUndismissPostResponseAmountRegExp = new RegExp('^(?!^[-+.]\*$)[+-]?0\*\\d\*\\.?\\d\*$');
+export const undismissTransactionReconciliationTransactionsTransactionIdUndismissPostResponseOriginalAmountOneRegExp = new RegExp('^(?!^[-+.]\*$)[+-]?0\*\\d\*\\.?\\d\*$');
+
+
+export const UndismissTransactionReconciliationTransactionsTransactionIdUndismissPostResponse = zod.object({
+  "id": zod.uuid(),
+  "tx_date": zod.iso.date(),
+  "value_date": zod.union([zod.iso.date(),zod.null()]).optional(),
+  "amount": zod.string().regex(undismissTransactionReconciliationTransactionsTransactionIdUndismissPostResponseAmountRegExp),
+  "original_amount": zod.union([zod.string().regex(undismissTransactionReconciliationTransactionsTransactionIdUndismissPostResponseOriginalAmountOneRegExp),zod.null()]).optional(),
+  "original_currency": zod.union([zod.string(),zod.null()]).optional(),
+  "description": zod.string(),
+  "counterparty": zod.string(),
+  "counterparty_iban": zod.union([zod.string(),zod.null()]).optional(),
+  "category": zod.union([zod.string(),zod.null()]).optional(),
+  "note": zod.union([zod.string(),zod.null()]).optional(),
+  "period": zod.string(),
+  "status": zod.enum(['unmatched', 'matched', 'no_invoice', 'withholding'])
+})
+
+/**
+ * Update a transaction's category or note.
+ * @summary Update Transaction
+ */
+export const UpdateTransactionReconciliationTransactionsTransactionIdPatchParams = zod.object({
+  "transaction_id": zod.uuid()
+})
+
+export const UpdateTransactionReconciliationTransactionsTransactionIdPatchBody = zod.object({
+  "category": zod.union([zod.string(),zod.null()]).optional(),
+  "note": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const updateTransactionReconciliationTransactionsTransactionIdPatchResponseAmountRegExp = new RegExp('^(?!^[-+.]\*$)[+-]?0\*\\d\*\\.?\\d\*$');
+export const updateTransactionReconciliationTransactionsTransactionIdPatchResponseOriginalAmountOneRegExp = new RegExp('^(?!^[-+.]\*$)[+-]?0\*\\d\*\\.?\\d\*$');
+
+
+export const UpdateTransactionReconciliationTransactionsTransactionIdPatchResponse = zod.object({
+  "id": zod.uuid(),
+  "tx_date": zod.iso.date(),
+  "value_date": zod.union([zod.iso.date(),zod.null()]).optional(),
+  "amount": zod.string().regex(updateTransactionReconciliationTransactionsTransactionIdPatchResponseAmountRegExp),
+  "original_amount": zod.union([zod.string().regex(updateTransactionReconciliationTransactionsTransactionIdPatchResponseOriginalAmountOneRegExp),zod.null()]).optional(),
+  "original_currency": zod.union([zod.string(),zod.null()]).optional(),
+  "description": zod.string(),
+  "counterparty": zod.string(),
+  "counterparty_iban": zod.union([zod.string(),zod.null()]).optional(),
+  "category": zod.union([zod.string(),zod.null()]).optional(),
+  "note": zod.union([zod.string(),zod.null()]).optional(),
+  "period": zod.string(),
+  "status": zod.enum(['unmatched', 'matched', 'no_invoice', 'withholding'])
+})
+
+/**
  * Trigger hybrid matching: deterministic first, then LLM for leftovers.
  * @summary Trigger Matching
  */
@@ -191,6 +266,7 @@ export const listMatchesReconciliationMatchesGetQueryLimitMax = 100;
 
 export const ListMatchesReconciliationMatchesGetQueryParams = zod.object({
   "period": zod.union([zod.string(),zod.null()]).optional(),
+  "status": zod.union([zod.enum(['pending', 'completed']),zod.null()]).optional(),
   "skip": zod.number().min(listMatchesReconciliationMatchesGetQuerySkipMin).default(listMatchesReconciliationMatchesGetQuerySkipDefault),
   "limit": zod.number().min(1).max(listMatchesReconciliationMatchesGetQueryLimitMax).default(listMatchesReconciliationMatchesGetQueryLimitDefault)
 })

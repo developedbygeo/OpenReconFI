@@ -164,7 +164,7 @@ export const GetVendorInvoicesVendorsVendorIdInvoicesGetResponse = zod.object({
   "drive_url": zod.union([zod.string(),zod.null()]).optional(),
   "drive_file_id": zod.union([zod.string(),zod.null()]).optional(),
   "source": zod.enum(['gmail', 'portal', 'manual']),
-  "status": zod.enum(['pending', 'matched', 'unmatched', 'flagged']),
+  "status": zod.enum(['pending', 'matched', 'unmatched', 'flagged', 'deferred']),
   "period": zod.string(),
   "raw_extraction": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional(),
   "created_at": zod.iso.datetime({})

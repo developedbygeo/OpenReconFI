@@ -6,13 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface UnmatchedTransactionSummary {
-  id: string;
-  counterparty: string;
-  description: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
-  amount: string;
-  tx_date: string;
+export interface TransactionUpdate {
   category?: string | null;
   note?: string | null;
 }

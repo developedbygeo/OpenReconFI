@@ -8,6 +8,7 @@
 
 export type ListMatchesReconciliationMatchesGetParams = {
 period?: string | null;
+status?: 'pending' | 'completed' | null;
 /**
  * @minimum 0
  */

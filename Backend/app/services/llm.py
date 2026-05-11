@@ -121,9 +121,14 @@ async def extract_invoice_from_pdf(pdf_bytes: bytes) -> dict[str, Any]:
     logger.info("Invoice extraction LLM response (%d chars): %.200s...", len(raw_text), raw_text)
     data = _parse_json(raw_text)
 
+    for field in ("vendor", "invoice_number", "invoice_date"):
+        val = data.get(field)
+        if val is None or (isinstance(val, str) and not val.strip()):
+            raise ValueError(f"LLM extraction missing required field: {field}")
+
     return {
-        "vendor": data["vendor"],
-        "invoice_number": data["invoice_number"],
+        "vendor": str(data["vendor"]).strip(),
+        "invoice_number": str(data["invoice_number"]).strip(),
         "invoice_date": date.fromisoformat(data["invoice_date"]),
         "amount_excl": _to_decimal(data["amount_excl"]),
         "amount_incl": _to_decimal(data["amount_incl"]),
@@ -145,8 +150,8 @@ Fields per transaction:
   tx_date        string YYYY-MM-DD (booking date)
   value_date     string YYYY-MM-DD | null
   amount         number in EUR (signed)
-  original_amount  number | null (foreign currency amount if converted)
-  original_currency  string ISO 4217 | null
+  original_amount  number | null — if the transaction involved a currency conversion, this is the amount in the original foreign currency
+  original_currency  string ISO 4217 | null — currency code of the original amount (e.g. "USD", "GBP") if different from EUR
   description    string (raw bank text)
   counterparty   string
   counterparty_iban  string | null

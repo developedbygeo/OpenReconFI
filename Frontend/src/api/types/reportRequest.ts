@@ -11,6 +11,7 @@ import type { TimeframeType } from './timeframeType';
 export interface ReportRequest {
   timeframe: TimeframeType;
   format: ReportFormat;
+  variant?: string;
   period?: string | null;
   quarter?: number | null;
   year?: number | null;

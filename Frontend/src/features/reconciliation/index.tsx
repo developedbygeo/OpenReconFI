@@ -6,6 +6,7 @@ import {
   Group,
   Text,
   Alert,
+  SegmentedControl,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { IconAlertCircle } from '@tabler/icons-react'
@@ -29,8 +30,14 @@ export { StatementUploadPage } from './_components/StatementUploadPage.tsx'
 export { ReconciliationOverviewPage } from './_components/ReconciliationOverviewPage.tsx'
 export { ManualMatchPage } from './_components/ManualMatchPage.tsx'
 
+type StatusFilter = 'pending' | 'completed' | 'all'
+
 export function MatchReviewPage() {
-  const { data: matchData, isLoading, error } = useListMatchesQuery({ limit: 100 })
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending')
+  const { data: matchData, isLoading, error } = useListMatchesQuery({
+    limit: 100,
+    ...(statusFilter !== 'all' && { status: statusFilter }),
+  })
   const { data: invoiceData } = useListInvoicesQuery({ limit: 100 })
   const { data: txData } = useListTransactionsQuery({ limit: 100 })
 
@@ -121,6 +128,16 @@ export function MatchReviewPage() {
         </Button>
       </Group>
 
+      <SegmentedControl
+        value={statusFilter}
+        onChange={(value) => setStatusFilter(value as StatusFilter)}
+        data={[
+          { label: 'Pending', value: 'pending' },
+          { label: 'Completed', value: 'completed' },
+          { label: 'All', value: 'all' },
+        ]}
+      />
+
       {isLoading && <MatchReviewSkeleton />}
 
       {error && (
@@ -138,7 +155,13 @@ export function MatchReviewPage() {
       )}
 
       {matches.length === 0 && !isLoading && (
-        <Text c="dimmed">No matches to review. Upload a statement and run matching.</Text>
+        <Text c="dimmed">
+          {statusFilter === 'pending'
+            ? 'No pending matches. Upload a statement and run matching.'
+            : statusFilter === 'completed'
+            ? 'No completed matches yet.'
+            : 'No matches found.'}
+        </Text>
       )}
 
       {matches.length > 0 && (

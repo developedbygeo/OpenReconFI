@@ -76,7 +76,17 @@ Backend is live at **http://localhost:8000/docs** (Swagger UI).
 
 ## Development
 
-### Run locally (without Docker)
+### Run the dev server (hot reload)
+
+Day-to-day, run the API locally with hot reload against the Dockerised Postgres:
+
+```bash
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+Server is live at **http://localhost:8000/docs**.
+
+#### First-time local setup
 
 ```bash
 # Start just Postgres
@@ -87,9 +97,6 @@ docker exec openreconfi-postgres-1 psql -U openreconfi -d openreconfi -c "CREATE
 
 # Run migrations
 uv run alembic upgrade head
-
-# Start server
-uv run uvicorn app.main:app --reload --port 8000
 ```
 
 ### Run tests

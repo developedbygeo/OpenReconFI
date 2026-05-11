@@ -14,4 +14,5 @@ export const InvoiceStatus = {
   matched: 'matched',
   unmatched: 'unmatched',
   flagged: 'flagged',
+  deferred: 'deferred',
 } as const;

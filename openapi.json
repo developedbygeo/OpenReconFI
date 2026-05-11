@@ -6,10 +6,34 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/categories": {
+      "get": {
+        "tags": [
+          "categories"
+        ],
+        "summary": "List Categories",
+        "operationId": "list_categories_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Categories Categories Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/invoices": {
       "get": {
         "tags": [
-          "invoices",
           "invoices"
         ],
         "summary": "List Invoices",
@@ -50,6 +74,24 @@
               "title": "Status"
             },
             "description": "Filter by status"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by category",
+              "title": "Category"
+            },
+            "description": "Filter by category"
           },
           {
             "name": "skip",
@@ -100,7 +142,6 @@
       },
       "post": {
         "tags": [
-          "invoices",
           "invoices"
         ],
         "summary": "Create Invoice",
@@ -140,7 +181,6 @@
       },
       "delete": {
         "tags": [
-          "invoices",
           "invoices"
         ],
         "summary": "Delete All Invoices",
@@ -164,7 +204,6 @@
     "/invoices/{invoice_id}": {
       "get": {
         "tags": [
-          "invoices",
           "invoices"
         ],
         "summary": "Get Invoice",
@@ -206,7 +245,6 @@
       },
       "patch": {
         "tags": [
-          "invoices",
           "invoices"
         ],
         "summary": "Update Invoice",
@@ -258,7 +296,6 @@
       },
       "delete": {
         "tags": [
-          "invoices",
           "invoices"
         ],
         "summary": "Delete Invoice",
@@ -295,7 +332,6 @@
     "/invoices/upload": {
       "post": {
         "tags": [
-          "invoices",
           "invoices"
         ],
         "summary": "Upload Invoice",
@@ -338,7 +374,6 @@
     "/jobs": {
       "get": {
         "tags": [
-          "jobs",
           "jobs"
         ],
         "summary": "List Jobs",
@@ -425,7 +460,6 @@
       },
       "post": {
         "tags": [
-          "jobs",
           "jobs"
         ],
         "summary": "Trigger Job",
@@ -468,7 +502,6 @@
     "/jobs/{job_id}": {
       "get": {
         "tags": [
-          "jobs",
           "jobs"
         ],
         "summary": "Get Job",
@@ -512,7 +545,6 @@
     "/reconciliation/upload": {
       "post": {
         "tags": [
-          "reconciliation",
           "reconciliation"
         ],
         "summary": "Upload Statement",
@@ -555,7 +587,6 @@
     "/reconciliation/overview": {
       "get": {
         "tags": [
-          "reconciliation",
           "reconciliation"
         ],
         "summary": "Period Overview",
@@ -601,7 +632,6 @@
     "/reconciliation/transactions": {
       "delete": {
         "tags": [
-          "reconciliation",
           "reconciliation"
         ],
         "summary": "Delete All Transactions",
@@ -624,7 +654,6 @@
       },
       "get": {
         "tags": [
-          "reconciliation",
           "reconciliation"
         ],
         "summary": "List Transactions",
@@ -660,6 +689,22 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
             }
           },
           {
@@ -713,7 +758,6 @@
     "/reconciliation/transactions/{transaction_id}/dismiss": {
       "post": {
         "tags": [
-          "reconciliation",
           "reconciliation"
         ],
         "summary": "Dismiss Transaction",
@@ -765,10 +809,107 @@
         }
       }
     },
+    "/reconciliation/transactions/{transaction_id}/undismiss": {
+      "post": {
+        "tags": [
+          "reconciliation"
+        ],
+        "summary": "Undismiss Transaction",
+        "description": "Undo a dismiss \u2014 set transaction back to unmatched.",
+        "operationId": "undismiss_transaction_reconciliation_transactions__transaction_id__undismiss_post",
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reconciliation/transactions/{transaction_id}": {
+      "patch": {
+        "tags": [
+          "reconciliation"
+        ],
+        "summary": "Update Transaction",
+        "description": "Update a transaction's category or note.",
+        "operationId": "update_transaction_reconciliation_transactions__transaction_id__patch",
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/reconciliation/match": {
       "post": {
         "tags": [
-          "reconciliation",
           "reconciliation"
         ],
         "summary": "Trigger Matching",
@@ -811,7 +952,6 @@
     "/reconciliation/matches": {
       "post": {
         "tags": [
-          "reconciliation",
           "reconciliation"
         ],
         "summary": "Create Match",
@@ -852,7 +992,6 @@
       },
       "get": {
         "tags": [
-          "reconciliation",
           "reconciliation"
         ],
         "summary": "List Matches",
@@ -872,6 +1011,26 @@
                 }
               ],
               "title": "Period"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "completed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
             }
           },
           {
@@ -925,7 +1084,6 @@
     "/reconciliation/matches/{match_id}": {
       "get": {
         "tags": [
-          "reconciliation",
           "reconciliation"
         ],
         "summary": "Get Match",
@@ -967,7 +1125,6 @@
       },
       "delete": {
         "tags": [
-          "reconciliation",
           "reconciliation"
         ],
         "summary": "Reject Match",
@@ -1012,7 +1169,6 @@
     "/reconciliation/matches/{match_id}/confirm": {
       "post": {
         "tags": [
-          "reconciliation",
           "reconciliation"
         ],
         "summary": "Confirm Match",
@@ -1067,7 +1223,6 @@
     "/reconciliation/matches/{match_id}/reassign": {
       "patch": {
         "tags": [
-          "reconciliation",
           "reconciliation"
         ],
         "summary": "Reassign Match",
@@ -1122,7 +1277,6 @@
     "/vendors": {
       "get": {
         "tags": [
-          "vendors",
           "vendors"
         ],
         "summary": "List Vendors",
@@ -1177,7 +1331,6 @@
       },
       "post": {
         "tags": [
-          "vendors",
           "vendors"
         ],
         "summary": "Create Vendor",
@@ -1219,7 +1372,6 @@
     "/vendors/{vendor_id}": {
       "get": {
         "tags": [
-          "vendors",
           "vendors"
         ],
         "summary": "Get Vendor",
@@ -1261,7 +1413,6 @@
       },
       "patch": {
         "tags": [
-          "vendors",
           "vendors"
         ],
         "summary": "Update Vendor",
@@ -1313,7 +1464,6 @@
       },
       "delete": {
         "tags": [
-          "vendors",
           "vendors"
         ],
         "summary": "Delete Vendor",
@@ -1357,7 +1507,6 @@
     "/vendors/{vendor_id}/invoices": {
       "get": {
         "tags": [
-          "vendors",
           "vendors"
         ],
         "summary": "Get Vendor Invoices",
@@ -1441,7 +1590,6 @@
     "/dashboard/missing-invoices": {
       "get": {
         "tags": [
-          "dashboard",
           "dashboard"
         ],
         "summary": "Missing Invoice Alerts",
@@ -1487,7 +1635,6 @@
     "/dashboard/spend-summary": {
       "get": {
         "tags": [
-          "dashboard",
           "dashboard"
         ],
         "summary": "Spend Summary",
@@ -1533,7 +1680,6 @@
     "/dashboard/spend-by-category": {
       "get": {
         "tags": [
-          "dashboard",
           "dashboard"
         ],
         "summary": "Spend By Category",
@@ -1579,7 +1725,6 @@
     "/dashboard/spend-by-vendor": {
       "get": {
         "tags": [
-          "dashboard",
           "dashboard"
         ],
         "summary": "Spend By Vendor",
@@ -1625,7 +1770,6 @@
     "/dashboard/vat-summary": {
       "get": {
         "tags": [
-          "dashboard",
           "dashboard"
         ],
         "summary": "Vat Summary",
@@ -1671,7 +1815,6 @@
     "/dashboard/mom-comparison": {
       "get": {
         "tags": [
-          "dashboard",
           "dashboard"
         ],
         "summary": "Mom Comparison",
@@ -1717,7 +1860,6 @@
     "/dashboard/tax-summary": {
       "get": {
         "tags": [
-          "dashboard",
           "dashboard"
         ],
         "summary": "Tax Summary",
@@ -1763,7 +1905,6 @@
     "/dashboard/earnings": {
       "get": {
         "tags": [
-          "dashboard",
           "dashboard"
         ],
         "summary": "Earnings",
@@ -1809,7 +1950,6 @@
     "/dashboard/withholdings": {
       "get": {
         "tags": [
-          "dashboard",
           "dashboard"
         ],
         "summary": "Withholdings",
@@ -1855,7 +1995,6 @@
     "/reports/generate": {
       "post": {
         "tags": [
-          "reports",
           "reports"
         ],
         "summary": "Generate Report",
@@ -1891,7 +2030,6 @@
     "/reports/preview": {
       "post": {
         "tags": [
-          "reports",
           "reports"
         ],
         "summary": "Preview Report",
@@ -1931,10 +2069,51 @@
         }
       }
     },
+    "/reports/period-summary": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Create Period Summary",
+        "description": "Create a Drive folder with all matched invoices for a period.",
+        "operationId": "create_period_summary_reports_period_summary_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeriodSummaryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodSummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/chat/message": {
       "post": {
         "tags": [
-          "chat",
           "chat"
         ],
         "summary": "Send Message",
@@ -1975,11 +2154,9 @@
     "/chat/history": {
       "get": {
         "tags": [
-          "chat",
           "chat"
         ],
         "summary": "Get History",
-        "description": "Get full chat history.",
         "operationId": "get_history_chat_history_get",
         "responses": {
           "200": {
@@ -1996,11 +2173,9 @@
       },
       "delete": {
         "tags": [
-          "chat",
           "chat"
         ],
         "summary": "Clear History",
-        "description": "Clear all chat history.",
         "operationId": "clear_history_chat_history_delete",
         "responses": {
           "200": {
@@ -2009,6 +2184,29 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ChatClearResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat/suggestions": {
+      "get": {
+        "tags": [
+          "chat",
+          "chat"
+        ],
+        "summary": "Get Suggestions",
+        "description": "Get contextual chat suggestions based on financial data and conversation history.",
+        "operationId": "get_suggestions_chat_suggestions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatSuggestions"
                 }
               }
             }
@@ -2078,6 +2276,30 @@
           "file"
         ],
         "title": "Body_upload_statement_reconciliation_upload_post"
+      },
+      "CategoryRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "color"
+        ],
+        "title": "CategoryRead"
       },
       "CategorySpend": {
         "properties": {
@@ -2244,6 +2466,22 @@
           "assistant"
         ],
         "title": "ChatRole"
+      },
+      "ChatSuggestions": {
+        "properties": {
+          "questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Questions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "questions"
+        ],
+        "title": "ChatSuggestions"
       },
       "ConfirmedBy": {
         "type": "string",
@@ -2617,7 +2855,8 @@
           "pending",
           "matched",
           "unmatched",
-          "flagged"
+          "flagged",
+          "deferred"
         ],
         "title": "InvoiceStatus"
       },
@@ -3331,6 +3570,13 @@
             },
             "type": "array",
             "title": "Unmatched Transaction List"
+          },
+          "dismissed_transaction_list": {
+            "items": {
+              "$ref": "#/components/schemas/UnmatchedTransactionSummary"
+            },
+            "type": "array",
+            "title": "Dismissed Transaction List"
           }
         },
         "type": "object",
@@ -3353,9 +3599,41 @@
           "earnings_total",
           "gap",
           "unmatched_invoice_list",
-          "unmatched_transaction_list"
+          "unmatched_transaction_list",
+          "dismissed_transaction_list"
         ],
         "title": "PeriodReconciliation"
+      },
+      "PeriodSummaryRequest": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period"
+        ],
+        "title": "PeriodSummaryRequest"
+      },
+      "PeriodSummaryResponse": {
+        "properties": {
+          "folder_url": {
+            "type": "string",
+            "title": "Folder Url"
+          },
+          "invoices_copied": {
+            "type": "integer",
+            "title": "Invoices Copied"
+          }
+        },
+        "type": "object",
+        "required": [
+          "folder_url",
+          "invoices_copied"
+        ],
+        "title": "PeriodSummaryResponse"
       },
       "ReportFormat": {
         "type": "string",
@@ -3402,6 +3680,11 @@
           },
           "format": {
             "$ref": "#/components/schemas/ReportFormat"
+          },
+          "variant": {
+            "type": "string",
+            "title": "Variant",
+            "default": "full"
           },
           "period": {
             "anyOf": [
@@ -3512,6 +3795,11 @@
           "transactions_parsed": {
             "type": "integer",
             "title": "Transactions Parsed"
+          },
+          "duplicates_skipped": {
+            "type": "integer",
+            "title": "Duplicates Skipped",
+            "default": 0
           },
           "period": {
             "type": "string",
@@ -3807,6 +4095,34 @@
         ],
         "title": "TransactionStatus"
       },
+      "TransactionUpdate": {
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "TransactionUpdate"
+      },
       "TriggeredBy": {
         "type": "string",
         "enum": [
@@ -3837,6 +4153,11 @@
           "invoice_date": {
             "type": "string",
             "title": "Invoice Date"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "EUR"
           },
           "category": {
             "anyOf": [
@@ -3894,6 +4215,17 @@
               }
             ],
             "title": "Category"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
           }
         },
         "type": "object",

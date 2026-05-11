@@ -6,8 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface StatementUploadResponse {
-  transactions_parsed: number;
-  duplicates_skipped?: number;
-  period: string;
+export interface CategoryRead {
+  id: string;
+  name: string;
+  color: string;
 }

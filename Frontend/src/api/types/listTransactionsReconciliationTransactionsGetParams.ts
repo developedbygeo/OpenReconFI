@@ -10,6 +10,7 @@ import type { TransactionStatus } from './transactionStatus';
 export type ListTransactionsReconciliationTransactionsGetParams = {
 period?: string | null;
 status?: TransactionStatus | null;
+category?: string | null;
 /**
  * @minimum 0
  */

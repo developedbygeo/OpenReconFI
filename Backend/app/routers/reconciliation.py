@@ -1,6 +1,6 @@
 from calendar import monthrange
 from datetime import date, datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
@@ -451,6 +451,7 @@ async def create_match(
 @router.get("/matches", response_model=MatchList)
 async def list_matches(
     period: Optional[str] = Query(None),
+    status: Optional[Literal["pending", "completed"]] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -465,6 +466,13 @@ async def list_matches(
         count_query = count_query.join(Invoice, Match.invoice_id == Invoice.id).where(
             Invoice.period == period
         )
+
+    if status == "pending":
+        query = query.where(Match.confirmed_at.is_(None))
+        count_query = count_query.where(Match.confirmed_at.is_(None))
+    elif status == "completed":
+        query = query.where(Match.confirmed_at.is_not(None))
+        count_query = count_query.where(Match.confirmed_at.is_not(None))
 
     query = query.offset(skip).limit(limit)
 

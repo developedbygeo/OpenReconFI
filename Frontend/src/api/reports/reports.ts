@@ -12,9 +12,12 @@ import * as zod from 'zod';
  * Generate a financial report in PDF or Excel format and upload to Drive.
  * @summary Generate Report
  */
+export const generateReportReportsGeneratePostBodyVariantDefault = `full`;
+
 export const GenerateReportReportsGeneratePostBody = zod.object({
   "timeframe": zod.enum(['single_month', 'quarter', 'ytd', 'full_year', 'custom']),
   "format": zod.enum(['pdf', 'excel']),
+  "variant": zod.string().default(generateReportReportsGeneratePostBodyVariantDefault),
   "period": zod.union([zod.string(),zod.null()]).optional(),
   "quarter": zod.union([zod.number(),zod.null()]).optional(),
   "year": zod.union([zod.number(),zod.null()]).optional(),
@@ -26,9 +29,12 @@ export const GenerateReportReportsGeneratePostBody = zod.object({
  * Preview what a report would contain without generating it.
  * @summary Preview Report
  */
+export const previewReportReportsPreviewPostBodyVariantDefault = `full`;
+
 export const PreviewReportReportsPreviewPostBody = zod.object({
   "timeframe": zod.enum(['single_month', 'quarter', 'ytd', 'full_year', 'custom']),
   "format": zod.enum(['pdf', 'excel']),
+  "variant": zod.string().default(previewReportReportsPreviewPostBodyVariantDefault),
   "period": zod.union([zod.string(),zod.null()]).optional(),
   "quarter": zod.union([zod.number(),zod.null()]).optional(),
   "year": zod.union([zod.number(),zod.null()]).optional(),
@@ -41,5 +47,18 @@ export const PreviewReportReportsPreviewPostResponse = zod.object({
   "periods": zod.array(zod.string()),
   "format": zod.enum(['pdf', 'excel']),
   "filename": zod.string()
+})
+
+/**
+ * Create a Drive folder with all matched invoices for a period.
+ * @summary Create Period Summary
+ */
+export const CreatePeriodSummaryReportsPeriodSummaryPostBody = zod.object({
+  "period": zod.string()
+})
+
+export const CreatePeriodSummaryReportsPeriodSummaryPostResponse = zod.object({
+  "folder_url": zod.string(),
+  "invoices_copied": zod.number()
 })
 
