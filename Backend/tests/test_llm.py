@@ -11,7 +11,7 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_extract_invoice_from_pdf():
-    """Test LLM extraction with mocked Claude API and pdfplumber."""
+    """Test LLM extraction with the PDF sent natively to Claude (mocked)."""
     from app.services.llm import extract_invoice_from_pdf
 
     mock_response = {
@@ -32,18 +32,7 @@ async def test_extract_invoice_from_pdf():
     mock_client = AsyncMock()
     mock_client.messages.create = AsyncMock(return_value=mock_message)
 
-    mock_page = MagicMock()
-    mock_page.extract_text.return_value = "Invoice #INV-2026-0312\nVercel Inc.\nTotal: €49.00"
-
-    mock_pdf = MagicMock()
-    mock_pdf.pages = [mock_page]
-    mock_pdf.__enter__ = MagicMock(return_value=mock_pdf)
-    mock_pdf.__exit__ = MagicMock(return_value=False)
-
-    with (
-        patch("app.services.llm._get_client", return_value=mock_client),
-        patch("app.services.llm.pdfplumber.open", return_value=mock_pdf),
-    ):
+    with patch("app.services.llm._get_client", return_value=mock_client):
         result = await extract_invoice_from_pdf(b"fake-pdf-bytes")
 
     assert result["vendor"] == "Vercel Inc."
@@ -55,23 +44,67 @@ async def test_extract_invoice_from_pdf():
     assert result["vat_rate"] == Decimal("21.0")
     assert result["raw"]["iban"] == "NL02ABNA0123456789"
 
+    # The PDF must be sent as a native document block, not text.
+    sent = mock_client.messages.create.call_args.kwargs["messages"][0]["content"]
+    assert sent[0]["type"] == "document"
+    assert sent[0]["source"]["media_type"] == "application/pdf"
+
 
 @pytest.mark.asyncio
-async def test_extract_invoice_empty_pdf():
-    """Test that extraction raises ValueError for empty PDF."""
+async def test_extract_missing_vendor_falls_back_to_sender():
+    """If the model can't determine the vendor, derive it from the email sender."""
     from app.services.llm import extract_invoice_from_pdf
 
-    mock_page = MagicMock()
-    mock_page.extract_text.return_value = ""
+    mock_response = {
+        "vendor": None,
+        "invoice_number": "1",
+        "invoice_date": "2026-03-01",
+        "amount_excl": 40.50,
+        "amount_incl": 49.00,
+        "vat_amount": 8.50,
+        "vat_rate": 21.0,
+        "currency": "EUR",
+    }
 
-    mock_pdf = MagicMock()
-    mock_pdf.pages = [mock_page]
-    mock_pdf.__enter__ = MagicMock(return_value=mock_pdf)
-    mock_pdf.__exit__ = MagicMock(return_value=False)
+    mock_message = MagicMock()
+    mock_message.content = [MagicMock(text=json.dumps(mock_response))]
 
-    with patch("app.services.llm.pdfplumber.open", return_value=mock_pdf):
-        with pytest.raises(ValueError, match="Could not extract text"):
-            await extract_invoice_from_pdf(b"empty-pdf")
+    mock_client = AsyncMock()
+    mock_client.messages.create = AsyncMock(return_value=mock_message)
+
+    with patch("app.services.llm._get_client", return_value=mock_client):
+        result = await extract_invoice_from_pdf(
+            b"fake-pdf-bytes", sender="Shadcnblocks <billing@shadcnblocks.com>"
+        )
+
+    assert result["vendor"] == "Shadcnblocks"
+
+
+@pytest.mark.asyncio
+async def test_extract_missing_vendor_no_sender_raises():
+    """No vendor and no sender to fall back on → ValueError."""
+    from app.services.llm import extract_invoice_from_pdf
+
+    mock_response = {
+        "vendor": "",
+        "invoice_number": "1",
+        "invoice_date": "2026-03-01",
+        "amount_excl": 40.50,
+        "amount_incl": 49.00,
+        "vat_amount": 8.50,
+        "vat_rate": 21.0,
+        "currency": "EUR",
+    }
+
+    mock_message = MagicMock()
+    mock_message.content = [MagicMock(text=json.dumps(mock_response))]
+
+    mock_client = AsyncMock()
+    mock_client.messages.create = AsyncMock(return_value=mock_message)
+
+    with patch("app.services.llm._get_client", return_value=mock_client):
+        with pytest.raises(ValueError, match="missing required field: vendor"):
+            await extract_invoice_from_pdf(b"fake-pdf-bytes")
 
 
 # ---------------------------------------------------------------------------

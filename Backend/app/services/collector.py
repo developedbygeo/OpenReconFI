@@ -53,11 +53,16 @@ async def run_collection(db: AsyncSession) -> dict[str, Any]:
 
     for att in attachments:
         try:
-            extracted = await extract_invoice_from_pdf(att.data)
+            extracted = await extract_invoice_from_pdf(
+                att.data, sender=att.sender, subject=att.subject
+            )
 
-            # Deduplicate by invoice number + date
+            # Deduplicate by vendor + invoice number + date. Vendor is essential:
+            # different vendors often reuse short sequential numbers (e.g. "1")
+            # on the same date, which would otherwise collide as false duplicates.
             existing = await db.execute(
                 select(Invoice.id).where(
+                    Invoice.vendor == extracted["vendor"],
                     Invoice.invoice_number == extracted["invoice_number"],
                     Invoice.invoice_date == extracted["invoice_date"],
                 )

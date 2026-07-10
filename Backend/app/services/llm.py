@@ -1,4 +1,4 @@
-import io
+import base64
 import json
 import logging
 from datetime import date
@@ -11,7 +11,29 @@ import re as _re
 import anthropic
 
 logger = logging.getLogger(__name__)
-import pdfplumber
+
+
+def _vendor_from_sender(sender: str | None) -> str | None:
+    """Derive a best-effort vendor name from an email 'From' header.
+
+    Prefers the display name ("Shadcnblocks <hi@x.com>" -> "Shadcnblocks"),
+    otherwise falls back to the second-level domain label.
+    """
+    if not sender:
+        return None
+    s = sender.strip()
+    name_match = _re.match(r'^\s*"?([^"<]+?)"?\s*<', s)
+    if name_match:
+        name = name_match.group(1).strip()
+        if name and "@" not in name:
+            return name
+    domain_match = _re.search(r"@([\w.-]+)", s)
+    if domain_match:
+        labels = [l for l in domain_match.group(1).split(".") if l]
+        if labels:
+            label = labels[-2] if len(labels) >= 2 else labels[0]
+            return label.capitalize()
+    return None
 
 
 def _to_decimal(value: Any) -> Decimal:
@@ -75,11 +97,11 @@ def _parse_json(text: str) -> Any:
 
 
 EXTRACTION_PROMPT = """\
-You are an invoice data extractor. Extract the following fields from the invoice text below.
+You are an invoice data extractor. Extract the following fields from the attached invoice PDF.
 Return ONLY valid JSON.
 
 Required fields:
-- vendor: string — the company/business name that issued the invoice. This must be ONLY the company name (e.g. "Vercel", "AWS", "Google Cloud"). Do NOT include descriptions like "excl. VAT", amounts, or other text.
+- vendor: string — the company/business name that issued the invoice. This must be ONLY the company name (e.g. "Vercel", "AWS", "Google Cloud"). Do NOT include descriptions like "excl. VAT", amounts, or other text. The name may appear only in a logo or header image — read it from there if it is not in the body text.
 - invoice_number: string
 - invoice_date: string (YYYY-MM-DD)
 - amount_excl: number (amount excluding VAT)
@@ -89,45 +111,78 @@ Required fields:
 - currency: string (e.g. "EUR")
 - iban: string or null
 - category: string — classify the expense into one of: "SaaS", "Infrastructure", "Marketing", "Legal", "Accounting", "Insurance", "Office", "Travel", "Telecom", "Freelancers", "Other". Pick the best fit based on the vendor and invoice contents.
-
-Invoice text:
-{text}
-"""
+{email_context}"""
 
 
-async def extract_invoice_from_pdf(pdf_bytes: bytes) -> dict[str, Any]:
-    """Extract structured invoice data from a PDF using pdfplumber + Claude."""
-    text = ""
-    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-        for page in pdf.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + "\n"
+async def extract_invoice_from_pdf(
+    pdf_bytes: bytes,
+    sender: str | None = None,
+    subject: str | None = None,
+) -> dict[str, Any]:
+    """Extract structured invoice data by sending the PDF natively to Claude.
 
-    if not text.strip():
-        raise ValueError("Could not extract text from PDF")
+    The PDF is read visually, so vendor names that live only in a logo/header
+    image (which a text-only extractor misses) are still recovered. If the model
+    still can't determine the vendor, we fall back to the email sender.
+    """
+    pdf_b64 = base64.standard_b64encode(pdf_bytes).decode("ascii")
+
+    email_context = ""
+    if sender or subject:
+        email_context = (
+            "\nThis invoice arrived by email — use only as a hint for the vendor "
+            "if the PDF is unclear:\n"
+            f"- From: {sender or 'unknown'}\n"
+            f"- Subject: {subject or 'unknown'}\n"
+        )
 
     client = _get_client()
     message = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=settings.anthropic_model,
         max_tokens=1024,
         messages=[
-            {"role": "user", "content": EXTRACTION_PROMPT.format(text=text)},
-            {"role": "assistant", "content": "{"},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "document",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "application/pdf",
+                            "data": pdf_b64,
+                        },
+                    },
+                    {
+                        "type": "text",
+                        "text": EXTRACTION_PROMPT.format(email_context=email_context),
+                    },
+                ],
+            },
         ],
     )
 
-    raw_text = "{" + message.content[0].text
+    raw_text = message.content[0].text
     logger.info("Invoice extraction LLM response (%d chars): %.200s...", len(raw_text), raw_text)
     data = _parse_json(raw_text)
 
-    for field in ("vendor", "invoice_number", "invoice_date"):
+    # Vendor is best-effort: fall back to the email sender before giving up.
+    vendor = data.get("vendor")
+    if vendor is None or (isinstance(vendor, str) and not vendor.strip()):
+        vendor = _vendor_from_sender(sender)
+        if vendor:
+            logger.warning(
+                "LLM returned no vendor; falling back to email sender: %s", vendor
+            )
+    if not vendor or not str(vendor).strip():
+        raise ValueError("LLM extraction missing required field: vendor")
+
+    for field in ("invoice_number", "invoice_date"):
         val = data.get(field)
         if val is None or (isinstance(val, str) and not val.strip()):
             raise ValueError(f"LLM extraction missing required field: {field}")
 
     return {
-        "vendor": str(data["vendor"]).strip(),
+        "vendor": str(vendor).strip(),
         "invoice_number": str(data["invoice_number"]).strip(),
         "invoice_date": date.fromisoformat(data["invoice_date"]),
         "amount_excl": _to_decimal(data["amount_excl"]),
@@ -223,7 +278,7 @@ async def parse_bank_statement(statement_text: str) -> list[dict[str, Any]]:
 
     client = _get_client()
     message = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=settings.anthropic_model,
         max_tokens=32768,
         timeout=httpx.Timeout(timeout=600.0, connect=5.0),
         messages=[
@@ -231,14 +286,10 @@ async def parse_bank_statement(statement_text: str) -> list[dict[str, Any]]:
                 "role": "user",
                 "content": STATEMENT_PARSING_PROMPT.format(text=statement_text),
             },
-            {
-                "role": "assistant",
-                "content": "[",
-            },
         ],
     )
 
-    raw_text = "[" + message.content[0].text
+    raw_text = message.content[0].text
     logger.info("Bank statement LLM response (%d chars, stop=%s): %.200s...",
                 len(raw_text), message.stop_reason, raw_text)
 
@@ -290,7 +341,7 @@ async def match_single_invoice(
 
     client = _get_client()
     message = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=settings.anthropic_model,
         max_tokens=512,
         messages=[
             {
@@ -303,14 +354,10 @@ async def match_single_invoice(
                     transactions_json=json.dumps(transactions, default=str),
                 ),
             },
-            {
-                "role": "assistant",
-                "content": "[",
-            },
         ],
     )
 
-    raw_text = "[" + message.content[0].text
+    raw_text = message.content[0].text
     data = _parse_json(raw_text)
 
     if not isinstance(data, list) or len(data) == 0:

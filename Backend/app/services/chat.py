@@ -369,7 +369,7 @@ async def chat_stream(
 
     try:
         async with client.messages.stream(
-            model="claude-sonnet-4-20250514",
+            model=settings.anthropic_model,
             max_tokens=2048,
             system=SYSTEM_PROMPT,
             messages=messages,
