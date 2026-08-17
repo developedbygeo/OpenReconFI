@@ -1,4 +1,5 @@
 import calendar
+import logging
 from decimal import Decimal
 from typing import Any
 
@@ -7,9 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.invoice import Invoice
 from app.models.vendor import Vendor
+from app.services.dedup import find_duplicate_invoice
 from app.services.drive import upload_pdf
 from app.services.gmail import fetch_unread_invoices
 from app.services.llm import extract_invoice_from_pdf
+
+logger = logging.getLogger(__name__)
 
 
 def _build_filename(
@@ -49,6 +53,7 @@ async def run_collection(db: AsyncSession) -> dict[str, Any]:
 
     processed = 0
     skipped = 0
+    skipped_details: list[str] = []
     errors: list[str] = []
 
     for att in attachments:
@@ -57,17 +62,31 @@ async def run_collection(db: AsyncSession) -> dict[str, Any]:
                 att.data, sender=att.sender, subject=att.subject
             )
 
-            # Deduplicate by vendor + invoice number + date. Vendor is essential:
-            # different vendors often reuse short sequential numbers (e.g. "1")
-            # on the same date, which would otherwise collide as false duplicates.
-            existing = await db.execute(
-                select(Invoice.id).where(
-                    Invoice.vendor == extracted["vendor"],
-                    Invoice.invoice_number == extracted["invoice_number"],
-                    Invoice.invoice_date == extracted["invoice_date"],
-                )
+            # Deduplicate by normalized invoice number + date + amount. Amount
+            # replaces vendor as the collision guard: different vendors do reuse
+            # short sequential numbers (e.g. "1") on the same date, but rarely
+            # for the same amount. Vendor itself is unusable as a key — a newer
+            # extraction prompt rewords it and every invoice looks new.
+            duplicate = await find_duplicate_invoice(
+                db,
+                invoice_number=extracted["invoice_number"],
+                invoice_date=extracted["invoice_date"],
+                amount_incl=extracted["amount_incl"],
             )
-            if existing.scalar_one_or_none() is not None:
+            if duplicate is not None:
+                # Skipping a genuinely new invoice is worse than storing a
+                # duplicate, so record both sides of every collision rather than
+                # just incrementing a counter.
+                detail = (
+                    f"{att.filename}: {extracted['vendor']} "
+                    f"{extracted['invoice_number']} {extracted['invoice_date']} "
+                    f"{extracted['amount_incl']} — matched existing "
+                    f"{duplicate.vendor} {duplicate.invoice_number} "
+                    f"{duplicate.invoice_date} {duplicate.amount_incl} "
+                    f"({duplicate.id})"
+                )
+                logger.warning("Skipped as duplicate — %s", detail)
+                skipped_details.append(detail)
                 skipped += 1
                 continue
 
@@ -122,5 +141,6 @@ async def run_collection(db: AsyncSession) -> dict[str, Any]:
         "emails_found": len(attachments),
         "invoices_processed": processed,
         "skipped_duplicates": skipped,
+        "skipped_details": skipped_details,
         "errors": errors,
     }
