@@ -27,20 +27,37 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
+    # Local dev keeps secrets in Backend/.env; Portainer git stacks materialize
+    # the stack's environment variables into a .env next to this compose file.
+    # Both are optional so either source works on its own.
     env_file:
-      - ./Backend/.env
+      - path: ./Backend/.env
+        required: false
+      - path: ./.env
+        required: false
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: openreconfi
       POSTGRES_USER: openreconfi
       POSTGRES_PASSWORD: openreconfi
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:8000/health", timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   frontend:
     build: ./Frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "3000:80"
 

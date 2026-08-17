@@ -2,7 +2,10 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Pin pnpm to the version in package.json's "packageManager" field rather than
+# "latest" — a floating pnpm changes install behaviour between builds.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
 
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile

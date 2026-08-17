@@ -1,3 +1,6 @@
+# Backend-only stack (Postgres + API) for API development.
+# For a full deployment including the frontend, use the repo-root
+# docker-compose.yml — see Backend/DEPLOY_PI.md.
 name: openreconfi
 
 services:
