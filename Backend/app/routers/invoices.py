@@ -126,8 +126,25 @@ async def upload_invoice(
     """Manual PDF upload — extracts via LLM, stores invoice."""
     from app.services.llm import extract_invoice_from_pdf
 
+    from app.services.dedup import find_duplicate_invoice
+
     pdf_bytes = await file.read()
     extracted = await extract_invoice_from_pdf(pdf_bytes)
+
+    duplicate = await find_duplicate_invoice(
+        db,
+        invoice_number=extracted["invoice_number"],
+        invoice_date=extracted["invoice_date"],
+        amount_incl=extracted["amount_incl"],
+    )
+    if duplicate is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Invoice already exists: {duplicate.vendor} "
+                f"{duplicate.invoice_number} ({duplicate.id})"
+            ),
+        )
 
     raw = extracted.get("raw") or {}
     invoice = Invoice(
