@@ -16,13 +16,20 @@ from app.services.matcher import (
 )
 
 
-def _inv(amount: str, vendor: str = "Vercel", currency: str = "EUR", iban: str | None = None) -> InvoiceCandidate:
+def _inv(
+    amount: str,
+    vendor: str = "Vercel",
+    currency: str = "EUR",
+    iban: str | None = None,
+    invoice_date: date | None = None,
+) -> InvoiceCandidate:
     return InvoiceCandidate(
         id=uuid.uuid4(),
         vendor=vendor,
         amount_incl=Decimal(amount),
         currency=currency,
         iban=iban,
+        invoice_date=invoice_date,
     )
 
 
@@ -62,15 +69,15 @@ class TestDeterministicMatch:
         assert matches[0].confidence == Decimal("1.00")
         assert "IBAN" in matches[0].rationale
 
-    def test_amount_plus_alias_match(self):
-        """Amount + vendor alias → confidence 0.95."""
+    def test_amount_plus_vendor_name_match(self):
+        """Amount + vendor name → confidence 0.95. The legal suffix is ignored."""
         inv = _inv("49.00", vendor="Vercel")
         tx = _tx("-49.00", counterparty="VERCEL INC", iban=None)
 
         matches = deterministic_match([inv], [tx], {"Vercel": ["VERCEL INC"]})
         assert len(matches) == 1
         assert matches[0].confidence == Decimal("0.95")
-        assert "alias" in matches[0].rationale
+        assert "vendor name" in matches[0].rationale
 
     def test_amount_only_left_for_llm(self):
         """Amount-only match (no IBAN or alias) → left for LLM, not matched."""
@@ -129,14 +136,157 @@ class TestDeterministicMatch:
         assert len(matches) == 1
         assert matches[0].confidence == Decimal("0.95")
 
-    def test_vendor_name_partial_no_deterministic(self):
-        """Counterparty is similar but not an exact substring → left for LLM."""
+    def test_invoice_vendor_longer_than_counterparty(self):
+        """Invoice carries the legal name, bank carries the short one → match."""
         inv = _inv("15.12", vendor="Adobe Systems Software Ireland Ltd")
         tx = _tx("-15.12", counterparty="Adobe Systems Software", description="payment")
 
-        # No alias configured — deterministic pass skips, LLM handles it
         matches = deterministic_match([inv], [tx], {})
-        assert len(matches) == 0
+        assert len(matches) == 1
+        assert matches[0].confidence == Decimal("0.95")
+
+    def test_vendor_name_suffix_only_difference(self):
+        """"Autohellas Hertz" vs "AUTOHELLAS" — the old substring test failed here."""
+        inv = _inv("440.45", vendor="Autohellas Hertz")
+        tx = _tx("-440.45", counterparty="AUTOHELLAS", description="car lease")
+
+        matches = deterministic_match([inv], [tx], {})
+        assert len(matches) == 1
+        assert matches[0].confidence == Decimal("0.95")
+
+    def test_shared_token_only(self):
+        """Names overlap on one distinctive token but neither contains the other."""
+        inv = _inv("50.00", vendor="Autohellas Hertz")
+        tx = _tx("-50.00", counterparty="HERTZ RENTAL", description="car")
+
+        matches = deterministic_match([inv], [tx], {})
+        assert len(matches) == 1
+        assert matches[0].confidence == Decimal("0.92")
+
+    def test_unrelated_vendor_still_no_match(self):
+        """Same amount, unrelated names → still left for the LLM."""
+        inv = _inv("20.00", vendor="Vercel")
+        tx = _tx("-20.00", counterparty="The Burger Room", description="lunch")
+
+        assert deterministic_match([inv], [tx], {}) == []
+
+    def test_nearest_date_wins_over_distant_one(self):
+        """Two same-amount charges for one vendor → the one in the lag window wins."""
+        inv = _inv("15.12", vendor="Adobe", invoice_date=date(2026, 5, 11))
+        near = _tx("-15.12", counterparty="Adobe Systems Software",
+                   tx_date=date(2026, 5, 14))
+        far = _tx("-15.12", counterparty="Adobe Systems Software",
+                  tx_date=date(2026, 7, 15))
+
+        matches = deterministic_match([inv], [near, far], {})
+        assert len(matches) == 1
+        assert matches[0].transaction_id == near.id
+
+    def test_out_of_window_transaction_not_matched(self):
+        """Next month's identical subscription charge is out of reach."""
+        inv = _inv("15.12", vendor="Adobe", invoice_date=date(2026, 4, 11))
+        tx = _tx("-15.12", counterparty="Adobe Systems Software",
+                 tx_date=date(2026, 6, 13))
+
+        assert deterministic_match([inv], [tx], {}) == []
+
+    def test_negative_lag_within_window(self):
+        """End-of-month invoice for a charge earlier that month still matches."""
+        inv = _inv("32.40", vendor="Google Cloud", invoice_date=date(2026, 4, 30))
+        tx = _tx("-32.40", counterparty="Google Workspace", tx_date=date(2026, 4, 8))
+
+        matches = deterministic_match([inv], [tx], {})
+        assert len(matches) == 1
+
+    def test_equidistant_duplicates_are_ambiguous(self):
+        """Two equally plausible charges → no guess, hand to the LLM."""
+        inv = _inv("11.25", vendor="Vercel", invoice_date=date(2026, 6, 10))
+        tx1 = _tx("-11.25", counterparty="VERCEL INC", tx_date=date(2026, 6, 7))
+        tx2 = _tx("-11.25", counterparty="VERCEL INC", tx_date=date(2026, 6, 13))
+
+        assert deterministic_match([inv], [tx1, tx2], {}) == []
+
+    def test_two_invoices_one_transaction_is_ambiguous(self):
+        """Duplicate invoices competing for one charge → neither is guessed."""
+        inv1 = _inv("70.00", vendor="Acme", invoice_date=date(2026, 5, 15))
+        inv2 = _inv("70.00", vendor="Acme", invoice_date=date(2026, 5, 15))
+        tx = _tx("-70.00", counterparty="ACME", tx_date=date(2026, 5, 18))
+
+        assert deterministic_match([inv1, inv2], [tx], {}) == []
+
+    def test_date_penalty_lowers_confidence(self):
+        """A distant but unambiguous pair matches at reduced confidence."""
+        inv = _inv("99.00", vendor="Hetzner", invoice_date=date(2026, 5, 1))
+        tx = _tx("-99.00", counterparty="Hetzner Online", tx_date=date(2026, 5, 21))
+
+        matches = deterministic_match([inv], [tx], {})
+        assert len(matches) == 1
+        assert matches[0].confidence == Decimal("0.95") - Decimal("0.100")
+
+    def test_missing_dates_do_not_block_match(self):
+        """Candidates without dates still match on amount + vendor."""
+        inv = _inv("49.00", vendor="Vercel")
+        tx = _tx("-49.00", counterparty="VERCEL INC")
+
+        assert len(deterministic_match([inv], [tx], {})) == 1
+
+    def test_alias_applies_across_vendor_name_variants(self):
+        """Alias learned under the legal name still helps the short-name invoice."""
+        inv = _inv("18.55", vendor="OpenAI", invoice_date=date(2026, 4, 2))
+        tx = _tx("-18.55", counterparty="CHATGPT SUBSCR", tx_date=date(2026, 4, 3))
+
+        matches = deterministic_match(
+            [inv], [tx], {"OpenAI Ireland Limited": ["CHATGPT SUBSCR"]}
+        )
+        assert len(matches) == 1
+        assert "alias" in matches[0].rationale
+
+    def test_usd_invoice_matches_converted_eur_charge(self):
+        """USD invoice, EUR charge, bank reported no original amount."""
+        inv = _inv("20.00", vendor="Resend", currency="USD",
+                   invoice_date=date(2026, 6, 15))
+        tx = _tx("-17.92", counterparty="Resend", tx_date=date(2026, 6, 18))
+
+        matches = deterministic_match([inv], [tx], {})
+        assert len(matches) == 1
+        assert "conversion" in matches[0].rationale
+        assert matches[0].confidence < Decimal("0.95")
+
+    def test_fx_requires_a_vendor_name(self):
+        """An implausible vendor is not rescued by a plausible rate."""
+        inv = _inv("20.00", vendor="Resend", currency="USD",
+                   invoice_date=date(2026, 6, 15))
+        tx = _tx("-17.92", counterparty="The Burger Room", tx_date=date(2026, 6, 18))
+
+        assert deterministic_match([inv], [tx], {}) == []
+
+    def test_fx_rejects_implausible_rate(self):
+        """Right vendor, right window, but the amount is nowhere near."""
+        inv = _inv("20.00", vendor="Resend", currency="USD",
+                   invoice_date=date(2026, 6, 15))
+        tx = _tx("-4.10", counterparty="Resend", tx_date=date(2026, 6, 18))
+
+        assert deterministic_match([inv], [tx], {}) == []
+
+    def test_exact_amount_beats_fx_guess(self):
+        """When the bank reports the original amount, the exact pair wins."""
+        inv = _inv("20.00", vendor="Vercel", currency="USD",
+                   invoice_date=date(2026, 6, 5))
+        exact = _tx("-17.34", counterparty="Vercel", tx_date=date(2026, 6, 10),
+                    original_amount="20.00", original_currency="USD")
+        guess = _tx("-17.50", counterparty="Vercel", tx_date=date(2026, 6, 9))
+
+        matches = deterministic_match([inv], [exact, guess], {})
+        assert len(matches) == 1
+        assert matches[0].transaction_id == exact.id
+
+    def test_eur_invoice_never_uses_fx_path(self):
+        """A EUR invoice must still match on the exact amount only."""
+        inv = _inv("20.00", vendor="Resend", currency="EUR",
+                   invoice_date=date(2026, 6, 15))
+        tx = _tx("-17.92", counterparty="Resend", tx_date=date(2026, 6, 18))
+
+        assert deterministic_match([inv], [tx], {}) == []
 
     def test_iban_normalization(self):
         """IBAN matching ignores spaces and case."""

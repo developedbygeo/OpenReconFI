@@ -624,7 +624,9 @@ async def _learn_vendor_alias(
     invoice: Optional[Invoice],
     transaction: Optional[Transaction],
 ) -> None:
-    """On confirmed match, save bank description variant to vendor aliases."""
+    """On confirmed match, save the bank counterparty variant to vendor aliases."""
+    from app.services.matcher import normalized_alias
+
     if not invoice or not transaction:
         return
 
@@ -634,13 +636,22 @@ async def _learn_vendor_alias(
     )
     vendor = vendor_result.scalar_one_or_none()
     if not vendor:
+        # First time we see this vendor string — create it, otherwise nothing is
+        # ever learned for it and the same manual match is needed every month.
+        vendor = Vendor(name=invoice.vendor, default_category=invoice.category)
+        db.add(vendor)
+        await db.flush()
+
+    # Learn the counterparty, not the raw description. Descriptions carry
+    # per-transaction references ("AUTOHELLAS HE_8000  D2  DMF  S") which never
+    # recur verbatim, so storing them produced aliases that could never match
+    # again. Fall back to the description only when there is no counterparty.
+    alias = normalized_alias(transaction.counterparty or transaction.description)
+    if not alias:
         return
 
-    description = transaction.description.strip()
-    if not description:
-        return
-
-    # Add to aliases if not already present
     current_aliases = vendor.aliases or []
-    if description not in current_aliases:
-        vendor.aliases = current_aliases + [description]
+    if any(normalized_alias(a) == alias for a in current_aliases):
+        return
+
+    vendor.aliases = current_aliases + [alias]
